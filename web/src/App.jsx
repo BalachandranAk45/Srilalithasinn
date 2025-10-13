@@ -10,15 +10,16 @@ import Login from "./pages/Login";
 import ReportPage from "./pages/Report";
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(localStorage.getItem("auth") === "true");
+  // Use sessionStorage instead of localStorage
+  const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem("auth") === "true");
 
   const handleLoginSuccess = () => {
-    localStorage.setItem("auth", "true");
+    sessionStorage.setItem("auth", "true"); // Store in sessionStorage
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("auth");
+    sessionStorage.removeItem("auth");
     setIsAuthenticated(false);
   };
 
