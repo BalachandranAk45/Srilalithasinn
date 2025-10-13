@@ -1,0 +1,20 @@
+.app-heading {
+    /* Corresponds to fontWeight="600" */
+    font-weight: 600;
+
+    /* Corresponds to color="brand.600" 
+       Note: You must replace #007bff with your actual 'brand.600' color. */
+    color: #007bff; /* Example Primary Blue/Teal */
+
+    /* Corresponds to fontSize={{ base: "xl" }} 
+       This is the default size for small screens (mobile) */
+    font-size: 1.25rem; /* Common equivalent for 'xl' */
+}
+
+/* Corresponds to fontSize={{ md: "2xl" }} 
+   The 'md' breakpoint in many systems is 48em (768px) */
+@media (min-width: 48em) {
+    .app-heading {
+        font-size: 1.5rem; /* Common equivalent for '2xl' */
+    }
+}
