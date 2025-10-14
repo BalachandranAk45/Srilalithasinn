@@ -228,51 +228,53 @@ export default function BookingPage() {
       {/* Toast container */}
       <ToastMessageContainer />
 
-      {/* STICKY HEADER BOX - Added top and zIndex for stickiness */}
-      <Box
-        position="sticky"
-        top="0"
-        mt={4}
-        zIndex="sticky"
-        py={4}
-        mx={{ base: -4, md: -8 }} // Compensate for padding in main box
-        px={{ base: 4, md: 8 }}
-      >
-        <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
+      {/* STICKY HEADER */}
+      <Box position="sticky" top="0" zIndex="sticky" py={{ base: 3, md: 4 }} px={{ base: 0, md: 0 }} bg="white">
+        <Heading fontSize={{ base: "lg", md: "2xl" }} fontWeight="600" color="purple.700">
           Room Booking
         </Heading>
       </Box>
-      <br />
 
       {/* Room Selection */}
       <Card shadow="lg" borderRadius="2xl" bg="white" mb="6">
         <CardBody>
-          <SimpleGrid columns={{ base: 1, sm: 2, md: 3, lg: 10 }} spacing="4" width="100%">
+          <SimpleGrid columns={{ base: 2, sm: 3, md: 4, lg: 6, xl: 10 }} spacing={3} width="100%">
             {assets.map((asset) => {
               const isAvailable = availability[asset.id] !== false;
+              const isSelected = selected.includes(asset.id);
               return (
                 <Box
                   key={asset.id}
-                  bgGradient={selected.includes(asset.id) ? "linear(to-br, purple.400, purple.600)" : "gray.50"}
-                  p="4"
+                  bgGradient={isSelected ? "linear(to-br, purple.400, purple.600)" : "gray.50"}
+                  p={4}
                   rounded="lg"
-                  shadow={selected.includes(asset.id) ? "xl" : "sm"}
-                  border={selected.includes(asset.id) ? "2px solid purple" : "1px solid #e2e8f0"}
+                  shadow={isSelected ? "xl" : "sm"}
+                  border={isSelected ? "2px solid purple" : "1px solid #e2e8f0"}
                   cursor={isAvailable ? "pointer" : "not-allowed"}
-                  onClick={() => openModal(asset)}
-                  _hover={{ transform: isAvailable ? "scale(1.05)" : "none", shadow: isAvailable ? "md" : "sm" }}
+                  onClick={() => isAvailable && openModal(asset)}
+                  _hover={{
+                    transform: isAvailable ? "scale(1.05)" : "none",
+                    shadow: isAvailable ? "md" : "sm",
+                  }}
                   textAlign="center"
                   opacity={isAvailable ? 1 : 0.5}
-                  title={isAvailable ? "" : "Room not available for selected dates"}
+                  title={isAvailable ? "" : "Room not available"}
                 >
                   <Icon
                     as={asset.icon}
-                    boxSize={8}
-                    mb="1"
-                    color={selected.includes(asset.id) ? "white" : "purple.500"}
+                    boxSize={{ base: 6, sm: 7, md: 8 }}
+                    mb={1}
+                    color={isSelected ? "white" : "purple.500"}
                   />
-                  <Text fontWeight="600">{asset.label}</Text>
-                  <Text fontWeight="bold" mt="1" color={selected.includes(asset.id) ? "white" : "gray.700"}>
+                  <Text fontWeight="600" fontSize={{ base: "sm", md: "md" }}>
+                    {asset.label}
+                  </Text>
+                  <Text
+                    fontWeight="bold"
+                    mt={1}
+                    color={isSelected ? "white" : "gray.700"}
+                    fontSize={{ base: "sm", md: "md" }}
+                  >
                     ₹{roomPrices[asset.id] || asset.price}
                   </Text>
                 </Box>
@@ -285,11 +287,11 @@ export default function BookingPage() {
       {/* Dates & Customer Details */}
       <Card shadow="lg" borderRadius="2xl" bg="white" mb="6">
         <CardBody>
-          <VStack spacing="6" align="stretch">
-            {/* Dates in HStack */}
-            <HStack spacing="2">
-              <Box flex={1}>
-                <Text fontWeight="600" color="purple.700" mb="2">
+          <VStack spacing={6} align="stretch">
+            {/* Dates */}
+            <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
+              <Box>
+                <Text fontWeight="600" color="purple.700" mb={2}>
                   From Date
                 </Text>
                 <DatePicker
@@ -298,7 +300,7 @@ export default function BookingPage() {
                   selectsStart
                   startDate={fromDate}
                   endDate={toDate}
-                  minDate={new Date()} // can't select past dates
+                  minDate={new Date()}
                   dateFormat="dd/MM/yyyy"
                   customInput={<Input />}
                 />
@@ -308,9 +310,8 @@ export default function BookingPage() {
                   </Text>
                 )}
               </Box>
-
-              <Box flex={1}>
-                <Text fontWeight="600" color="purple.700" mb="2">
+              <Box>
+                <Text fontWeight="600" color="purple.700" mb={2}>
                   To Date
                 </Text>
                 <DatePicker
@@ -319,7 +320,7 @@ export default function BookingPage() {
                   selectsEnd
                   startDate={fromDate}
                   endDate={toDate}
-                  minDate={fromDate > new Date() ? fromDate : new Date()} // ensure can't select before fromDate or today
+                  minDate={fromDate > new Date() ? fromDate : new Date()}
                   dateFormat="dd/MM/yyyy"
                   customInput={<Input />}
                 />
@@ -329,83 +330,62 @@ export default function BookingPage() {
                   </Text>
                 )}
               </Box>
-            </HStack>
+            </SimpleGrid>
 
             {/* Customer Details */}
-            <Box>
-              <Text fontWeight="600" color="purple.700" mb="2">
+            <VStack spacing={3} align="stretch">
+              <Text fontWeight="600" color="purple.700">
                 Customer Details
               </Text>
-              <VStack spacing="3" align="stretch">
-                <Input
-                  placeholder="Customer Name"
-                  value={customer.name}
-                  onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
-                />
-                {errors.name && (
-                  <Text color="red.500" fontSize="sm">
-                    {errors.name}
-                  </Text>
-                )}
-
-                <Input
-                  placeholder="Mobile Number"
-                  value={customer.mobile}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
-                      setCustomer({ ...customer, mobile: value });
-                      setErrors({ ...errors, mobile: "" });
-                    } else {
-                      setErrors({ ...errors, mobile: "Mobile number can only contain digits" });
-                    }
-                  }}
-                />
-                {errors.mobile && (
-                  <Text color="red.500" fontSize="sm">
-                    {errors.mobile}
-                  </Text>
-                )}
-
-                <Input
-                  placeholder="Aadhaar Number"
-                  value={customer.aadhar}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    if (/^\d*$/.test(value)) {
-                      setCustomer({ ...customer, aadhar: value });
-                      setErrors({ ...errors, aadhar: "" });
-                    } else {
-                      setErrors({ ...errors, aadhar: "Aadhaar number can only contain digits" });
-                    }
-                  }}
-                />
-                {errors.aadhar && (
-                  <Text color="red.500" fontSize="sm">
-                    {errors.aadhar}
-                  </Text>
-                )}
-
-                <Textarea
-                  placeholder="Address"
-                  value={customer.address}
-                  onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
-                />
-                {errors.address && (
-                  <Text color="red.500" fontSize="sm">
-                    {errors.address}
-                  </Text>
-                )}
-              </VStack>
-            </Box>
+              <Input
+                placeholder="Customer Name"
+                value={customer.name}
+                onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
+              />
+              {errors.name && (
+                <Text color="red.500" fontSize="sm">
+                  {errors.name}
+                </Text>
+              )}
+              <Input
+                placeholder="Mobile Number"
+                value={customer.mobile}
+                onChange={(e) => /^\d*$/.test(e.target.value) && setCustomer({ ...customer, mobile: e.target.value })}
+              />
+              {errors.mobile && (
+                <Text color="red.500" fontSize="sm">
+                  {errors.mobile}
+                </Text>
+              )}
+              <Input
+                placeholder="Aadhaar Number"
+                value={customer.aadhar}
+                onChange={(e) => /^\d*$/.test(e.target.value) && setCustomer({ ...customer, aadhar: e.target.value })}
+              />
+              {errors.aadhar && (
+                <Text color="red.500" fontSize="sm">
+                  {errors.aadhar}
+                </Text>
+              )}
+              <Textarea
+                placeholder="Address"
+                value={customer.address}
+                onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
+              />
+              {errors.address && (
+                <Text color="red.500" fontSize="sm">
+                  {errors.address}
+                </Text>
+              )}
+            </VStack>
           </VStack>
         </CardBody>
       </Card>
 
-      <Divider my="4" />
+      <Divider my={4} />
       <Box textAlign="center">
         <Button
-          size="lg"
+          size={{ base: "md", md: "lg" }}
           bgGradient="linear(to-r, purple.400, purple.600)"
           color="white"
           _hover={{ bgGradient: "linear(to-r, purple.500, purple.700)" }}

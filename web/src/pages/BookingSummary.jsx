@@ -176,20 +176,15 @@ const BookingSummary = () => {
   };
 
   return (
-    <Box p={30}>
-      {/* Heading section */}
-      <VStack align="start" spacing={2} mb={6} mt="20px">
-        <Heading
-          fontSize={{ base: "xl", md: "2xl" }}
-          fontWeight="600"
-          color="purple.700"
-          mt="15px" // 23 * 4px (Chakra spacing equivalent)
-        >
+    <Box p={{ base: 4, md: 8 }}>
+      {/* Heading */}
+      <VStack align="start" spacing={2} mb={6} mt="4">
+        <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
           Our Bookings
         </Heading>
       </VStack>
 
-      {/* Table Section */}
+      {/* Desktop Table */}
       <Box display={{ base: "none", md: "block" }} bg={cardBg} borderRadius="2xl" boxShadow="xl" p={6}>
         <Table variant="simple" size="md">
           <Thead>
@@ -214,7 +209,6 @@ const BookingSummary = () => {
               </Th>
             </Tr>
           </Thead>
-
           <Tbody>
             {bookings?.map((b, idx) => {
               let icon = LuHotel;
@@ -225,18 +219,16 @@ const BookingSummary = () => {
                 <Tr
                   key={b.booking_id}
                   bg={idx % 2 === 0 ? "white" : "purple.50"}
-                  _hover={{
-                    bg: "purple.100",
-                    transform: "translateY(-1px)",
-                    boxShadow: "md",
-                    transition: "all 0.2s",
-                  }}
+                  _hover={{ bg: "purple.100", transform: "translateY(-1px)", boxShadow: "md", transition: "all 0.2s" }}
                 >
+                  {/* Customer with Avatar */}
                   <Td>
                     <HStack spacing={3}>
                       <Avatar name={b.name} size="sm" />
                       <VStack align="start" spacing={0}>
-                        <Text fontWeight="600">{b.name}</Text>
+                        <Text fontWeight="600" fontSize={{ base: "sm", md: "md" }}>
+                          {b.name}
+                        </Text>
                         <Text fontSize="xs" color="gray.500">
                           {b.booking_no}
                         </Text>
@@ -244,30 +236,32 @@ const BookingSummary = () => {
                     </HStack>
                   </Td>
 
+                  {/* Room / Hall / Apartment */}
                   <Td>
                     <HStack spacing={2}>
                       <Box as={icon} color="teal.500" boxSize={5} />
-                      <Text>{b.room_no}</Text>
+                      <Text fontSize={{ base: "sm", md: "md" }}>{b.room_no}</Text>
                     </HStack>
                   </Td>
 
+                  {/* Check-In & Check-Out */}
                   <Td>
                     <Badge colorScheme="teal" px={2} py={1} borderRadius="md">
                       {b.checkIn}
                     </Badge>
                   </Td>
-
                   <Td>
                     <Badge colorScheme="blue" px={2} py={1} borderRadius="md">
                       {b.checkOut}
                     </Badge>
                   </Td>
 
+                  {/* Status */}
                   <Td>
                     <Select
                       size="sm"
                       value={b.status}
-                      onChange={(e) => handleStatusChange(b.booking_ids, e.target.value)}
+                      onChange={(e) => handleStatusChange(b.booking_id, e.target.value)}
                       borderColor={statusColors[b.status]}
                     >
                       <option value="Booked">Booked</option>
@@ -277,30 +271,26 @@ const BookingSummary = () => {
                     </Select>
                   </Td>
 
+                  {/* Actions */}
                   <Td>
-                    <HStack spacing={3}>
-                      {/* Preview Eye Icon */}
+                    <HStack spacing={2}>
                       <IconButton
                         aria-label="Preview Invoice"
-                        icon={<AiOutlineEye size={22} />} // increase icon size
-                        size="lg" // Chakra button size
+                        icon={<AiOutlineEye size={22} />}
+                        size="sm"
                         colorScheme="green"
                         onClick={() => previewInvoice(b.customer_id)}
                         isDisabled={b.status !== "CheckedOut"}
                         variant="ghost"
-                        _hover={{ bg: "green.100", color: "green.700" }}
                       />
-
-                      {/* Download PDF Icon */}
                       <IconButton
                         aria-label="Download Invoice"
-                        icon={<AiOutlineFilePdf size={22} />} // increase icon size
-                        size="lg"
+                        icon={<AiOutlineFilePdf size={22} />}
+                        size="sm"
                         colorScheme="red"
                         onClick={() => downloadInvoice(b.customer_id)}
                         isDisabled={b.status !== "CheckedOut"}
                         variant="ghost"
-                        _hover={{ bg: "red.100", color: "red.700" }}
                       />
                     </HStack>
                   </Td>
@@ -310,9 +300,77 @@ const BookingSummary = () => {
           </Tbody>
         </Table>
 
+        {/* Pagination */}
         <Box mt={4} display="flex" justifyContent="center">
           {renderPagination()}
         </Box>
+      </Box>
+
+      {/* Mobile View */}
+      <Box display={{ base: "block", md: "none" }}>
+        <VStack spacing={4}>
+          {bookings?.map((b) => {
+            let icon = LuHotel;
+            if (b.room_type === "Conference Hall") icon = MdOutlineMeetingRoom;
+            else if (b.room_type === "Service Apartment") icon = LuBuilding2;
+
+            return (
+              <Box key={b.booking_id} bg="white" p={4} borderRadius="xl" shadow="sm" w="100%">
+                <HStack justify="space-between" mb={2}>
+                  <HStack>
+                    <Avatar name={b.name} size="sm" />
+                    <VStack align="start" spacing={0}>
+                      <Text fontWeight="600">{b.name}</Text>
+                      <Text fontSize="xs" color="gray.500">
+                        {b.booking_no}
+                      </Text>
+                    </VStack>
+                  </HStack>
+                  <Box as={icon} color="teal.500" boxSize={5} />
+                </HStack>
+
+                <HStack justify="space-between" mb={2}>
+                  <Badge colorScheme="teal">{b.checkIn}</Badge>
+                  <Badge colorScheme="blue">{b.checkOut}</Badge>
+                </HStack>
+
+                <Select
+                  size="sm"
+                  value={b.status}
+                  onChange={(e) => handleStatusChange(b.booking_id, e.target.value)}
+                  borderColor={statusColors[b.status]}
+                  mb={2}
+                >
+                  <option value="Booked">Booked</option>
+                  <option value="CheckedIn">Checked In</option>
+                  <option value="CheckedOut">Checked Out</option>
+                  <option value="Cancelled">Cancelled</option>
+                </Select>
+
+                <HStack spacing={2} justify="flex-end">
+                  <IconButton
+                    aria-label="Preview Invoice"
+                    icon={<AiOutlineEye size={20} />}
+                    size="sm"
+                    colorScheme="green"
+                    onClick={() => previewInvoice(b.customer_id)}
+                    isDisabled={b.status !== "CheckedOut"}
+                    variant="ghost"
+                  />
+                  <IconButton
+                    aria-label="Download Invoice"
+                    icon={<AiOutlineFilePdf size={20} />}
+                    size="sm"
+                    colorScheme="red"
+                    onClick={() => downloadInvoice(b.customer_id)}
+                    isDisabled={b.status !== "CheckedOut"}
+                    variant="ghost"
+                  />
+                </HStack>
+              </Box>
+            );
+          })}
+        </VStack>
       </Box>
 
       {/* Preview Modal */}
