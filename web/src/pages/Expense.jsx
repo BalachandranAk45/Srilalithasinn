@@ -45,6 +45,7 @@ export default function ExpensePage() {
   const [totalPages, setTotalPages] = useState(1);
 
   const ITEMS_PER_PAGE = 10;
+  const [formErrors, setFormErrors] = useState({ invoice: "", description: "", amount: "", apiError: "" });
 
   // Fetch expenses
   const fetchExpenses = async (page = 1) => {
@@ -66,22 +67,31 @@ export default function ExpensePage() {
   useEffect(() => {
     fetchExpenses(currentPage);
   }, [currentPage]);
-    const handlePageChange = (newPage) => {
+  const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      fetchExpenses(newPage);
+      setCurrentPage(newPage); // ✅ update state first
     }
   };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormErrors({ ...formErrors, [e.target.name]: "" }); // clear error for this field
   };
-
   const handleAddExpense = async () => {
     const { invoice, description, amount } = formData;
-    if (!invoice || !description || !amount) {
-      showStatusToast("error", "All fields are required");
-      return;
-    }
+
+    // Validation
+    const errors = {
+      invoice: invoice ? "" : "Invoice number is required",
+      description: description ? "" : "Description is required",
+      amount: amount ? "" : "Amount is required",
+      apiError: "",
+    };
+    setFormErrors(errors);
+
+    const hasError = Object.values(errors).some((err) => err !== "");
+    if (hasError) return; // stop if any errors
+
     try {
       const res = await fetch("http://localhost:5000/api/addexpense", {
         method: "POST",
@@ -89,17 +99,22 @@ export default function ExpensePage() {
         body: JSON.stringify({ invoice, description, amount }),
       });
       const data = await res.json();
+
       if (!res.ok) {
-        showStatusToast("error", data.message || "Failed to add expense");
+        // Inline API error
+        setFormErrors({ ...formErrors, apiError: data.message || "Failed to add expense" });
         return;
       }
+
+      // Success toast
       showStatusToast("success", "Expense added successfully!");
+
       setFormData({ invoice: "", description: "", amount: "" });
       onClose();
       fetchExpenses(currentPage);
     } catch (err) {
       console.error(err);
-      showStatusToast("error", "Server not reachable");
+      setFormErrors({ ...formErrors, apiError: "Server not reachable" });
     }
   };
 
@@ -141,7 +156,7 @@ export default function ExpensePage() {
   };
 
   return (
-    <Box p={6}>
+    <Box p={8}>
       <ToastMessageContainer />
 
       {/* Header */}
@@ -160,16 +175,16 @@ export default function ExpensePage() {
         <Table variant="simple" size="md">
           <Thead>
             <Tr bgGradient="linear(to-r, purple.600, purple.500)">
-              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+              <Th color="white" fontSize="sm" p={3}>
                 Invoice No
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+              <Th color="white" fontSize="sm" p={3}>
                 Description
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+              <Th color="white" fontSize="sm" p={3}>
                 Amount
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+              <Th color="white" fontSize="sm" p={3}>
                 Action
               </Th>
             </Tr>
@@ -259,17 +274,53 @@ export default function ExpensePage() {
           <ModalHeader>Add New Expense</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <VStack spacing={4}>
-              <Input placeholder="Invoice No" name="invoice" value={formData.invoice} onChange={handleChange} />
-              <Textarea
-                placeholder="Description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-              />
-              <Input placeholder="Amount" name="amount" type="number" value={formData.amount} onChange={handleChange} />
+            <VStack spacing={4} align="stretch">
+              <Box>
+                <Input placeholder="Invoice No" name="invoice" value={formData.invoice} onChange={handleChange} />
+                {formErrors.invoice && (
+                  <Text color="red.500" fontSize="sm" mt={1}>
+                    {formErrors.invoice}
+                  </Text>
+                )}
+              </Box>
+
+              <Box>
+                <Textarea
+                  placeholder="Description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                />
+                {formErrors.description && (
+                  <Text color="red.500" fontSize="sm" mt={1}>
+                    {formErrors.description}
+                  </Text>
+                )}
+              </Box>
+
+              <Box>
+                <Input
+                  placeholder="Amount"
+                  name="amount"
+                  type="number"
+                  value={formData.amount}
+                  onChange={handleChange}
+                />
+                {formErrors.amount && (
+                  <Text color="red.500" fontSize="sm" mt={1}>
+                    {formErrors.amount}
+                  </Text>
+                )}
+              </Box>
+
+              {formErrors.apiError && (
+                <Text color="red.500" fontSize="sm" mt={1}>
+                  {formErrors.apiError}
+                </Text>
+              )}
             </VStack>
           </ModalBody>
+
           <ModalFooter>
             <Button colorScheme="purple" mr={3} onClick={handleAddExpense}>
               Add

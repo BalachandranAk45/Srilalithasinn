@@ -184,12 +184,16 @@ app.post("/api/addbooking", (req, res) => {
 app.get("/api/bookings", (req, res) => {
   let { page, limit } = req.query;
 
-  page = parseInt(page) || 1; // default page = 1
-  limit = parseInt(limit) || 10; // default 10 records per page
+  page = parseInt(page) || 1;
+  limit = parseInt(limit) || 10;
   const offset = (page - 1) * limit;
 
-  // Total count query
-  const countSql = `SELECT COUNT(*) AS total FROM booking_details`;
+  // Count unique bookings per customer per check-in date
+  const countSql = `
+    SELECT COUNT(DISTINCT c.customer_id, b.from_date) AS total
+    FROM booking_details b
+    JOIN customers c ON b.customer_id = c.customer_id
+  `;
 
   db.query(countSql, (err, countResult) => {
     if (err) return res.status(500).json({ message: "Count error", error: err.sqlMessage });
@@ -198,21 +202,21 @@ app.get("/api/bookings", (req, res) => {
     const totalPages = Math.ceil(total / limit);
 
     const sql = `
-      SELECT 
-        b.booking_id,
-        c.customer_name AS name,
+      SELECT
         c.customer_id,
+        c.customer_name AS name,
         c.mobile,
         c.booking_no,
-        b.room_no,
-        b.room_type,
-        b.room_amount AS total_amount,
-        DATE_FORMAT(b.from_date, '%Y-%m-%d') AS checkIn,
-        DATE_FORMAT(b.to_date, '%Y-%m-%d') AS checkOut,
-        b.status
+        GROUP_CONCAT(b.room_no SEPARATOR ', ') AS room_no,
+        GROUP_CONCAT(b.room_type SEPARATOR ', ') AS room_types,
+        SUM(b.room_amount) AS total_amount,
+        DATE_FORMAT(MIN(b.from_date), '%Y-%m-%d') AS checkIn,
+        DATE_FORMAT(MAX(b.to_date), '%Y-%m-%d') AS checkOut,
+        GROUP_CONCAT(b.status SEPARATOR ', ') AS status
       FROM booking_details b
       JOIN customers c ON b.customer_id = c.customer_id
-      ORDER BY b.from_date DESC
+      GROUP BY c.customer_id, b.from_date
+      ORDER BY checkIn DESC
       LIMIT ? OFFSET ?
     `;
 
@@ -319,7 +323,7 @@ app.get("/api/report", (req, res) => {
   let { page, limit, fromDate, toDate } = req.query;
 
   page = parseInt(page) || 1;
-  limit = parseInt(limit) || 10;
+  limit = parseInt(limit) || 10; // Default 5 records per page
   const offset = (page - 1) * limit;
 
   let whereClauses = ["b.status='CheckedOut'"];
@@ -336,7 +340,7 @@ app.get("/api/report", (req, res) => {
 
   const whereSQL = whereClauses.length ? "WHERE " + whereClauses.join(" AND ") : "";
 
-  // First get total count after filters
+  // Get total count after filters
   const countSql = `
     SELECT COUNT(*) AS total
     FROM booking_details b

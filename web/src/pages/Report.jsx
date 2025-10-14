@@ -39,8 +39,16 @@ const ReportPage = () => {
       const params = new URLSearchParams();
       params.append("page", pageNum);
       params.append("limit", limit);
-      if (fromDate) params.append("fromDate", fromDate.toISOString().split("T")[0]);
-      if (toDate) params.append("toDate", toDate.toISOString().split("T")[0]);
+
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+
+      if (fromDate) params.append("fromDate", formatDate(fromDate));
+      if (toDate) params.append("toDate", formatDate(toDate));
 
       const res = await fetch(`http://localhost:5000/api/report?${params.toString()}`);
       const data = await res.json();
@@ -75,9 +83,15 @@ const ReportPage = () => {
   };
 
   return (
-    <Box p={6}>
+    <Box p={8}>
       {/* Heading + Date Filters */}
-      <Box mb={6} display="flex" flexDirection={{ base: "column", md: "row" }} alignItems="center" justifyContent="space-between">
+      <Box
+        mb={6}
+        display="flex"
+        flexDirection={{ base: "column", md: "row" }}
+        alignItems="center"
+        justifyContent="space-between"
+      >
         <Heading
           fontSize={{ base: "xl", md: "2xl" }}
           fontWeight="600"
@@ -99,6 +113,7 @@ const ReportPage = () => {
               onChange={(date) => setFromDate(date)}
               placeholderText="Select from date"
               customInput={<Input size="md" />}
+              dateFormat="dd/MM/yyyy"
             />
           </Box>
 
@@ -112,6 +127,8 @@ const ReportPage = () => {
               onChange={(date) => setToDate(date)}
               placeholderText="Select to date"
               customInput={<Input size="md" />}
+              minDate={fromDate}
+              dateFormat="dd/MM/yyyy"
             />
           </Box>
 
@@ -132,22 +149,22 @@ const ReportPage = () => {
         <Table variant="simple" size="md">
           <Thead>
             <Tr bgGradient="linear(to-r, purple.600, purple.500)">
-              <Th color="white" fontSize="sm" fontWeight="600">
+              <Th color="white" fontSize="sm">
                 Customer
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600">
+              <Th color="white" fontSize="sm">
                 Mobile
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600">
+              <Th color="white" fontSize="sm">
                 Room / Hall No
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600">
+              <Th color="white" fontSize="sm">
                 Check-In
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600">
+              <Th color="white" fontSize="sm">
                 Check-Out
               </Th>
-              <Th color="white" fontSize="sm" fontWeight="600">
+              <Th color="white" fontSize="sm">
                 Amount
               </Th>
             </Tr>

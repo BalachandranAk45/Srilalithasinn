@@ -45,6 +45,15 @@ export default function BookingPage() {
   const [availability, setAvailability] = useState({});
   const [currentAsset, setCurrentAsset] = useState(null);
   const [modalPrice, setModalPrice] = useState(0);
+  const [errors, setErrors] = useState({
+    name: "",
+    mobile: "",
+    aadhar: "",
+    address: "",
+    fromDate: "",
+    toDate: "",
+    rooms: "",
+  });
 
   // Room details modal
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -129,11 +138,36 @@ export default function BookingPage() {
   // Open confirmation modal
   // -----------------------------
   const handleConfirmBooking = () => {
-    if (!customer.name || !customer.mobile || !fromDate || !toDate || selected.length === 0) {
-      showStatusToast("error", "Please fill all customer details and select at least one room.");
-      return;
+    const newErrors = {
+      name: customer.name ? "" : "Name is required",
+      mobile: customer.mobile
+        ? /^\d{10}$/.test(customer.mobile)
+          ? ""
+          : "Mobile number must be 10 digits"
+        : "Mobile number is required",
+      aadhar: customer.aadhar
+        ? /^\d{12}$/.test(customer.aadhar)
+          ? ""
+          : "Aadhaar number must be 12 digits"
+        : "Aadhaar number is required",
+      address: customer.address ? "" : "Address is required",
+      fromDate: fromDate ? "" : "From date is required",
+      toDate: toDate ? "" : "To date is required",
+      rooms: selected.length > 0 ? "" : "Please select at least one room to proceed with the booking.",
+    };
+
+    setErrors(newErrors);
+
+    const hasError = Object.values(newErrors).some((err) => err !== "");
+
+    // Show toast only for room selection
+    if (newErrors.rooms) {
+      showStatusToast("error", newErrors.rooms);
     }
-    onConfirmOpen();
+
+    if (!hasError) {
+      onConfirmOpen();
+    }
   };
 
   // -----------------------------
@@ -195,20 +229,16 @@ export default function BookingPage() {
       <ToastMessageContainer />
 
       {/* STICKY HEADER BOX - Added top and zIndex for stickiness */}
-      <Box 
-        position="sticky" 
-        top="0" 
+      <Box
+        position="sticky"
+        top="0"
         mt={4}
-        zIndex="sticky" 
-        py={4} 
+        zIndex="sticky"
+        py={4}
         mx={{ base: -4, md: -8 }} // Compensate for padding in main box
         px={{ base: 4, md: 8 }}
       >
-        <Heading 
-          fontSize={{ base: "xl", md: "2xl" }} 
-          fontWeight="600" 
-          color="purple.700"
-        >
+        <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
           Room Booking
         </Heading>
       </Box>
@@ -256,36 +286,52 @@ export default function BookingPage() {
       <Card shadow="lg" borderRadius="2xl" bg="white" mb="6">
         <CardBody>
           <VStack spacing="6" align="stretch">
-            <Box>
-              <Text fontWeight="600" color="purple.700" mb="2">
-                From Date
-              </Text>
-              <DatePicker
-                selected={fromDate}
-                onChange={setFromDate}
-                selectsStart
-                startDate={fromDate}
-                endDate={toDate}
-                minDate={new Date()}
-                dateFormat="dd/MM/yyyy"
-                customInput={<Input />}
-              />
-            </Box>
-            <Box>
-              <Text fontWeight="600" color="purple.700" mb="2">
-                To Date
-              </Text>
-              <DatePicker
-                selected={toDate}
-                onChange={setToDate}
-                selectsEnd
-                startDate={fromDate}
-                endDate={toDate}
-                minDate={fromDate || new Date()}
-                dateFormat="dd/MM/yyyy"
-                customInput={<Input />}
-              />
-            </Box>
+            {/* Dates in HStack */}
+            <HStack spacing="2">
+              <Box flex={1}>
+                <Text fontWeight="600" color="purple.700" mb="2">
+                  From Date
+                </Text>
+                <DatePicker
+                  selected={fromDate}
+                  onChange={setFromDate}
+                  selectsStart
+                  startDate={fromDate}
+                  endDate={toDate}
+                  minDate={new Date()} // can't select past dates
+                  dateFormat="dd/MM/yyyy"
+                  customInput={<Input />}
+                />
+                {errors.fromDate && (
+                  <Text color="red.500" fontSize="sm">
+                    {errors.fromDate}
+                  </Text>
+                )}
+              </Box>
+
+              <Box flex={1}>
+                <Text fontWeight="600" color="purple.700" mb="2">
+                  To Date
+                </Text>
+                <DatePicker
+                  selected={toDate}
+                  onChange={setToDate}
+                  selectsEnd
+                  startDate={fromDate}
+                  endDate={toDate}
+                  minDate={fromDate > new Date() ? fromDate : new Date()} // ensure can't select before fromDate or today
+                  dateFormat="dd/MM/yyyy"
+                  customInput={<Input />}
+                />
+                {errors.toDate && (
+                  <Text color="red.500" fontSize="sm">
+                    {errors.toDate}
+                  </Text>
+                )}
+              </Box>
+            </HStack>
+
+            {/* Customer Details */}
             <Box>
               <Text fontWeight="600" color="purple.700" mb="2">
                 Customer Details
@@ -296,21 +342,60 @@ export default function BookingPage() {
                   value={customer.name}
                   onChange={(e) => setCustomer({ ...customer, name: e.target.value })}
                 />
+                {errors.name && (
+                  <Text color="red.500" fontSize="sm">
+                    {errors.name}
+                  </Text>
+                )}
+
                 <Input
                   placeholder="Mobile Number"
                   value={customer.mobile}
-                  onChange={(e) => setCustomer({ ...customer, mobile: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) {
+                      setCustomer({ ...customer, mobile: value });
+                      setErrors({ ...errors, mobile: "" });
+                    } else {
+                      setErrors({ ...errors, mobile: "Mobile number can only contain digits" });
+                    }
+                  }}
                 />
+                {errors.mobile && (
+                  <Text color="red.500" fontSize="sm">
+                    {errors.mobile}
+                  </Text>
+                )}
+
                 <Input
                   placeholder="Aadhaar Number"
                   value={customer.aadhar}
-                  onChange={(e) => setCustomer({ ...customer, aadhar: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^\d*$/.test(value)) {
+                      setCustomer({ ...customer, aadhar: value });
+                      setErrors({ ...errors, aadhar: "" });
+                    } else {
+                      setErrors({ ...errors, aadhar: "Aadhaar number can only contain digits" });
+                    }
+                  }}
                 />
+                {errors.aadhar && (
+                  <Text color="red.500" fontSize="sm">
+                    {errors.aadhar}
+                  </Text>
+                )}
+
                 <Textarea
                   placeholder="Address"
                   value={customer.address}
                   onChange={(e) => setCustomer({ ...customer, address: e.target.value })}
                 />
+                {errors.address && (
+                  <Text color="red.500" fontSize="sm">
+                    {errors.address}
+                  </Text>
+                )}
               </VStack>
             </Box>
           </VStack>
@@ -388,7 +473,6 @@ export default function BookingPage() {
                   </HStack>
                 )}
                 <Box>
-                  <Text>Price (Editable):</Text>
                   <NumberInput value={modalPrice} min={0} onChange={(value) => setModalPrice(Number(value))}>
                     <NumberInputField />
                     <NumberInputStepper>

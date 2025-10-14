@@ -165,14 +165,14 @@ const BookingSummary = () => {
   return (
     <Box p={30}>
       {/* Heading section */}
-      <VStack align="start" spacing={2} mb={6} mt="20px" >
+      <VStack align="start" spacing={2} mb={6} mt="20px">
         <Heading
           fontSize={{ base: "xl", md: "2xl" }}
           fontWeight="600"
           color="purple.700"
           mt="15px" // 23 * 4px (Chakra spacing equivalent)
         >
-          Today’s Bookings
+          Our Bookings
         </Heading>
       </VStack>
 
