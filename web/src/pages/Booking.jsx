@@ -11,7 +11,6 @@ import {
   Card,
   CardBody,
   Textarea,
-  Select,
   Divider,
   Icon,
   Modal,
@@ -32,6 +31,7 @@ import { LuHotel, LuBuilding2 } from "react-icons/lu";
 import { MdOutlineMeetingRoom } from "react-icons/md";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+// NOTE: Assuming this path is correct for your project
 import { showStatusToast, ToastMessageContainer } from "../components/toast";
 
 export default function BookingPage() {
@@ -43,10 +43,14 @@ export default function BookingPage() {
   const [roomPrices, setRoomPrices] = useState({});
   const [totalPrice, setTotalPrice] = useState(0);
   const [availability, setAvailability] = useState({});
-
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const [currentAsset, setCurrentAsset] = useState(null);
   const [modalPrice, setModalPrice] = useState(0);
+
+  // Room details modal
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Booking confirmation modal
+  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
 
   const assets = [
     { id: "room1", label: "S1", price: 2000, beds: 2, type: "Standard", maxIncluded: 2, icon: LuHotel },
@@ -119,26 +123,32 @@ export default function BookingPage() {
       total += roomPrices[id] || assets.find((a) => a.id === id).price;
     });
     setTotalPrice(total);
-  }, [selected, roomPrices]);
+  }, [selected, roomPrices, assets]);
 
   // -----------------------------
-  // Handle booking
+  // Open confirmation modal
   // -----------------------------
-  const handleBooking = async () => {
+  const handleConfirmBooking = () => {
     if (!customer.name || !customer.mobile || !fromDate || !toDate || selected.length === 0) {
       showStatusToast("error", "Please fill all customer details and select at least one room.");
       return;
     }
+    onConfirmOpen();
+  };
 
+  // -----------------------------
+  // Final booking from modal
+  // -----------------------------
+  const confirmBooking = async () => {
     const payload = {
       customer,
       fromDate: fromDate.toISOString().split("T")[0],
       toDate: toDate.toISOString().split("T")[0],
-      rooms: selected.map((id, index) => {
+      rooms: selected.map((id) => {
         const asset = assets.find((a) => a.id === id);
         const occ = occupancy[id] || { adults: 1, children: 0 };
         return {
-          room_no: index + 1,
+          room_no: asset.label,
           room_type: asset.type,
           adults: occ.adults,
           children: occ.children,
@@ -158,6 +168,7 @@ export default function BookingPage() {
       const data = await response.json();
       if (response.ok) {
         showStatusToast("success", `Booking confirmed! Booking No: ${data.booking_no}`);
+        // Reset form
         setCustomer({ name: "", mobile: "", aadhar: "", address: "" });
         setSelected([]);
         setOccupancy({});
@@ -165,6 +176,7 @@ export default function BookingPage() {
         setFromDate(new Date());
         setToDate(new Date());
         setTotalPrice(0);
+        onConfirmClose();
       } else {
         showStatusToast("error", data.message || "Booking failed.");
       }
@@ -182,9 +194,24 @@ export default function BookingPage() {
       {/* Toast container */}
       <ToastMessageContainer />
 
-      <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
-        Room Booking
-      </Heading>
+      {/* STICKY HEADER BOX - Added top and zIndex for stickiness */}
+      <Box 
+        position="sticky" 
+        top="0" 
+        mt={4}
+        zIndex="sticky" 
+        py={4} 
+        mx={{ base: -4, md: -8 }} // Compensate for padding in main box
+        px={{ base: 4, md: 8 }}
+      >
+        <Heading 
+          fontSize={{ base: "xl", md: "2xl" }} 
+          fontWeight="600" 
+          color="purple.700"
+        >
+          Room Booking
+        </Heading>
+      </Box>
       <br />
 
       {/* Room Selection */}
@@ -290,67 +317,6 @@ export default function BookingPage() {
         </CardBody>
       </Card>
 
-      {/* Occupancy & Total */}
-      {selected.length > 0 && (
-        <Box mt="6" bg="gray.50" p="4" rounded="xl">
-          <Heading size="md" mb="4" color="purple.700">
-            Occupancy & Pricing
-          </Heading>
-          <VStack spacing="4" align="stretch">
-            {selected.map((id) => {
-              const asset = assets.find((a) => a.id === id);
-              return (
-                <HStack key={id} spacing="4" align="center">
-                  <Text flex="1">{asset.label}</Text>
-                  {asset.maxIncluded > 0 && (
-                    <>
-                      <HStack>
-                        <Text fontSize="sm">Adults:</Text>
-                        <Select
-                          size="sm"
-                          value={occupancy[id]?.adults || 1}
-                          onChange={(e) =>
-                            setOccupancy({ ...occupancy, [id]: { ...occupancy[id], adults: Number(e.target.value) } })
-                          }
-                        >
-                          {[1, 2, 3, 4, 5].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </Select>
-                      </HStack>
-                      <HStack>
-                        <Text fontSize="sm">Children:</Text>
-                        <Select
-                          size="sm"
-                          value={occupancy[id]?.children || 0}
-                          onChange={(e) =>
-                            setOccupancy({ ...occupancy, [id]: { ...occupancy[id], children: Number(e.target.value) } })
-                          }
-                        >
-                          {[0, 1, 2, 3, 4].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </Select>
-                      </HStack>
-                    </>
-                  )}
-                </HStack>
-              );
-            })}
-          </VStack>
-
-          <Box mt="4" p="3" bg="purple.100" rounded="md" textAlign="center">
-            <Text fontWeight="bold" fontSize="lg" color="purple.800">
-              Total Price: ₹{totalPrice}
-            </Text>
-          </Box>
-        </Box>
-      )}
-
       <Divider my="4" />
       <Box textAlign="center">
         <Button
@@ -358,7 +324,7 @@ export default function BookingPage() {
           bgGradient="linear(to-r, purple.400, purple.600)"
           color="white"
           _hover={{ bgGradient: "linear(to-r, purple.500, purple.700)" }}
-          onClick={handleBooking}
+          onClick={handleConfirmBooking}
         >
           Confirm Booking
         </Button>
@@ -442,6 +408,99 @@ export default function BookingPage() {
           </ModalContent>
         </Modal>
       )}
+
+      {/* Booking Confirmation Modal (Cleaned up, using the 'Professional' version structure) */}
+      <Modal isOpen={isConfirmOpen} onClose={onConfirmClose} size="2xl" isCentered scrollBehavior="inside">
+        <ModalOverlay bg="blackAlpha.600" />
+        <ModalContent borderRadius="2xl" p={6}>
+          <ModalHeader textAlign="center" fontSize="2xl" color="purple.700">
+            Booking Confirmation
+          </ModalHeader>
+          <ModalCloseButton />
+
+          <ModalBody>
+            <VStack spacing={6} align="stretch">
+              {/* Customer Details */}
+              <Box p={5} bg="gray.50" borderRadius="xl" shadow="sm">
+                <Text fontWeight="700" color="purple.600" mb={3}>
+                  Customer Information
+                </Text>
+                <SimpleGrid columns={2} spacing={3}>
+                  <Text>
+                    <strong>Name:</strong> {customer.name}
+                  </Text>
+                  <Text>
+                    <strong>Mobile:</strong> {customer.mobile}
+                  </Text>
+                  <Text>
+                    <strong>Aadhaar:</strong> {customer.aadhar}
+                  </Text>
+                  <Text>
+                    <strong>Address:</strong> {customer.address}
+                  </Text>
+                </SimpleGrid>
+              </Box>
+
+              {/* Booking Dates */}
+              <Box p={5} bg="gray.50" borderRadius="xl" shadow="sm">
+                <Text fontWeight="700" color="purple.600" mb={3}>
+                  Booking Dates
+                </Text>
+                <HStack spacing={10}>
+                  <Text>
+                    <strong>From:</strong> {fromDate.toLocaleDateString()}
+                  </Text>
+                  <Text>
+                    <strong>To:</strong> {toDate.toLocaleDateString()}
+                  </Text>
+                </HStack>
+              </Box>
+
+              {/* Rooms & Occupancy Table */}
+              <Box p={5} bg="gray.50" borderRadius="xl" shadow="sm">
+                <Text fontWeight="700" color="purple.600" mb={3}>
+                  Rooms Summary
+                </Text>
+                <VStack spacing={3} align="stretch">
+                  {selected.map((id, index) => {
+                    const asset = assets.find((a) => a.id === id);
+                    const occ = occupancy[id] || { adults: 1, children: 0 };
+                    return (
+                      <Box key={id} p={3} bg="white" borderRadius="md" shadow="sm" border="1px solid #E2E8F0">
+                        <HStack justify="space-between">
+                          <Text fontWeight="600">
+                            {index + 1}. {asset.label} ({asset.type})
+                          </Text>
+                          <Text fontWeight="bold">₹{roomPrices[id] || asset.price}</Text>
+                        </HStack>
+                        <Text mt={1} color="gray.600">
+                          Adults: {occ.adults}, Children: {occ.children}
+                        </Text>
+                      </Box>
+                    );
+                  })}
+                </VStack>
+              </Box>
+
+              {/* Total Amount */}
+              <Box p={5} bg="purple.50" borderRadius="xl" shadow="sm" textAlign="right">
+                <Text fontSize="xl" fontWeight="700" color="purple.700">
+                  Total: ₹{totalPrice}
+                </Text>
+              </Box>
+            </VStack>
+          </ModalBody>
+
+          <ModalFooter justifyContent="center">
+            <Button colorScheme="purple" size="lg" mr={4} onClick={confirmBooking}>
+              Confirm Booking
+            </Button>
+            <Button variant="outline" size="lg" onClick={onConfirmClose}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }

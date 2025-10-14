@@ -89,28 +89,15 @@ app.get("/api/check-availability", (req, res) => {
   const sql = `
     SELECT room_no
     FROM booking_details
-    WHERE status IN ('Booked','CheckedIn')
+    WHERE status IN ('Booked', 'CheckedIn')
       AND NOT (to_date < ? OR from_date > ?)
   `;
 
   db.query(sql, [from, to], (err, results) => {
     if (err) return res.status(500).json({ message: "Error checking availability", error: err.sqlMessage });
 
-    // Map booked room numbers to labels (match your rooms array)
-    const roomMapping = {
-      1: "S1",
-      2: "S2",
-      3: "SB1",
-      4: "SB2",
-      5: "SB3",
-      6: "D1",
-      7: "A1",
-      8: "A2",
-      9: "A3",
-      10: "H1",
-    };
-
-    const bookedRooms = results.map((r) => roomMapping[r.room_no]);
+    // ✅ Directly use room_no values from DB since they are now labels (e.g., "S1", "D1")
+    const bookedRooms = results.map((r) => r.room_no);
 
     const availability = rooms.map((room) => ({
       ...room,

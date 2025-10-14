@@ -7,6 +7,7 @@ import {
   Thead,
   Tbody,
   Tr,
+  HStack,
   Th,
   Td,
   VStack,
@@ -65,6 +66,11 @@ export default function ExpensePage() {
   useEffect(() => {
     fetchExpenses(currentPage);
   }, [currentPage]);
+    const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      fetchExpenses(newPage);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -102,29 +108,29 @@ export default function ExpensePage() {
     onDelOpen();
   };
 
-const handleConfirmDelete = async () => {
-  if (!deleteId) return;
-  try {
-    const res = await fetch(`http://localhost:5000/api/deleteexpense/${deleteId}`, {
-      method: "DELETE",
-    });
-    const data = await res.json();
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      const res = await fetch(`http://localhost:5000/api/deleteexpense/${deleteId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
 
-    if (!res.ok) {
-      showStatusToast("error", data.message || "Failed to delete expense");
-      return;
+      if (!res.ok) {
+        showStatusToast("error", data.message || "Failed to delete expense");
+        return;
+      }
+
+      showStatusToast("success", "Expense deleted successfully!");
+      onDelClose();
+
+      // Refresh current page
+      fetchExpenses(currentPage);
+    } catch (err) {
+      console.error(err);
+      showStatusToast("error", "Server not reachable");
     }
-
-    showStatusToast("success", "Expense deleted successfully!");
-    onDelClose();
-
-    // Refresh current page
-    fetchExpenses(currentPage);
-  } catch (err) {
-    console.error(err);
-    showStatusToast("error", "Server not reachable");
-  }
-};
+  };
 
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
@@ -141,25 +147,31 @@ const handleConfirmDelete = async () => {
       {/* Header */}
       <Flex justify="space-between" align="center" mb={6} wrap="wrap">
         <VStack align="start" spacing={1}>
-          <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
+          <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700" mt={10}>
             Expense Report
           </Heading>
-        
         </VStack>
         <Button colorScheme="purple" onClick={onOpen} mt={{ base: 4, md: 0 }}>
           + Add Expense
         </Button>
       </Flex>
 
-      {/* Desktop Table */}
-      <Box display={{ base: "none", md: "block" }} bg="white" borderRadius="2xl" boxShadow="xl" p={6}>
+      <Box display={{ base: "none", md: "block" }} bg={cardBg} borderRadius="2xl" boxShadow="xl" p={6}>
         <Table variant="simple" size="md">
           <Thead>
-            <Tr bgGradient="linear(to-r, purple.600, purple.800)">
-              <Th color="white" fontSize="sm" fontWeight="600">Invoice No</Th>
-              <Th color="white" fontSize="sm" fontWeight="600">Description</Th>
-              <Th color="white" fontSize="sm" fontWeight="600">Amount</Th>
-              <Th color="white" fontSize="sm" fontWeight="600">Action</Th>
+            <Tr bgGradient="linear(to-r, purple.600, purple.500)">
+              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+                Invoice No
+              </Th>
+              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+                Description
+              </Th>
+              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+                Amount
+              </Th>
+              <Th color="white" fontSize="sm" fontWeight="600" p={3}>
+                Action
+              </Th>
             </Tr>
           </Thead>
           <Tbody>
@@ -167,28 +179,23 @@ const handleConfirmDelete = async () => {
               <Tr
                 key={exp.id}
                 bg={idx % 2 === 0 ? "white" : "purple.50"}
-                _hover={{
-                  bg: "purple.100",
-                  transform: "translateY(-2px)",
-                  boxShadow: "md",
-                  transition: "all 0.2s",
-                }}
+                _hover={{ bg: "purple.100", transform: "translateY(-1px)", boxShadow: "md", transition: "all 0.2s" }}
               >
-                <Td>
-                  <Badge colorScheme="purple" borderRadius="full" px={3} py={1} fontSize="0.9em" fontWeight="500">
-                    {exp.invoice}
-                  </Badge>
+                <Td p={2}>{exp.invoice}</Td>
+                <Td p={2} color="gray.700" fontWeight="400">
+                  {exp.description}
                 </Td>
-                <Td color="gray.700" fontWeight="500">{exp.description}</Td>
-                <Td color="gray.800" fontWeight="600">₹{exp.amount.toLocaleString()}</Td>
-                <Td>
+                <Td p={2} color="gray.800" fontWeight="400">
+                  ₹{exp.amount.toLocaleString()}
+                </Td>
+                <Td p={2}>
                   <IconButton
                     aria-label="Delete"
                     icon={<Trash2 />}
                     colorScheme="red"
                     variant="ghost"
-                    _hover={{ bg: "red.100", transform: "scale(1.1)" }}
-                    transition="all 0.2s"
+                    size="sm"
+                    _hover={{ bg: "red.100", transform: "scale(1.05)", transition: "all 0.2s" }}
                     onClick={() => handleDeleteClick(exp.id)}
                   />
                 </Td>
@@ -198,42 +205,26 @@ const handleConfirmDelete = async () => {
         </Table>
 
         {/* Pagination */}
-        <Flex justify="center" mt={6} align="center">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handlePrevPage}
-            leftIcon={<ChevronLeft />}
-            mr={2}
-            _hover={{ bg: "purple.100", color: "purple.700" }}
-          >
+        <HStack mt={4} justify="center" spacing={2}>
+          <Button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
             Prev
           </Button>
 
-          {Array.from({ length: totalPages }, (_, i) => (
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <Button
-              key={i + 1}
+              key={p}
               size="sm"
-              colorScheme={currentPage === i + 1 ? "purple" : "gray"}
-              onClick={() => setCurrentPage(i + 1)}
-              mx={1}
-              _hover={{ bg: currentPage === i + 1 ? "purple.400" : "gray.200" }}
+              colorScheme={p === currentPage ? "purple" : "gray"}
+              onClick={() => handlePageChange(p)}
             >
-              {i + 1}
+              {p}
             </Button>
           ))}
 
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleNextPage}
-            rightIcon={<ChevronRight />}
-            ml={2}
-            _hover={{ bg: "purple.100", color: "purple.700" }}
-          >
+          <Button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
             Next
           </Button>
-        </Flex>
+        </HStack>
       </Box>
 
       {/* Mobile View */}

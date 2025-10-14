@@ -29,16 +29,20 @@ export default function Sidebar() {
   return (
     <Box
       bg={bg}
-      minH="150vh"
       w={{ base: isCollapsed ? "60px" : "260px", md: isCollapsed ? "60px" : "260px" }}
-      transition="width 0.3s"
+      minH="100vh"
+      position="sticky"
+      top="0"
+      left="0"
+      zIndex="999"
       boxShadow="xl"
+      transition="width 0.3s"
       display="flex"
       flexDirection="column"
       justifyContent="space-between"
     >
       <Box>
-        {/* Icon + Name side by side */}
+        {/* Header with toggle */}
         <HStack m="4" spacing="3" alignItems="center">
           <IconButton
             icon={<FiMenu />}
@@ -46,15 +50,16 @@ export default function Sidebar() {
             onClick={() => setIsCollapsed(!isCollapsed)}
             colorScheme="purple"
             size="md"
+            ml={-2}
           />
           {!isCollapsed && (
             <Heading size="md" color="purple.700" textAlign="left" mb="0">
-              SriLalitha's Inn
+              SriLalitha&apos;s Inn
             </Heading>
           )}
         </HStack>
 
-        {/* Links */}
+        {/* Navigation Links */}
         <VStack align="stretch" spacing="3" overflowY="auto">
           {links.map((link) => (
             <Tooltip
@@ -66,16 +71,15 @@ export default function Sidebar() {
               <Button
                 as={RouterLink}
                 to={link.path}
-                variant={location.pathname === link.path ? "solid" : "ghost"}
-                bg={location.pathname === link.path ? "purple.600" : "transparent"}
-                color={location.pathname === link.path ? "white" : "purple.700"}
+                variant="ghost"
+                bg={location.pathname === link.path ? hoverBg : "transparent"}
+                color={location.pathname === link.path ? "purple.800" : "purple.700"}
                 justifyContent={isCollapsed ? "center" : "flex-start"}
                 leftIcon={link.icon}
                 _hover={{
-                  bg: location.pathname === link.path ? "purple.700" : hoverBg,
-                  color: location.pathname === link.path ? "white" : "purple.800",
+                  bg: hoverBg,
+                  color: "purple.800",
                 }}
-                borderRadius="lg"
               >
                 {!isCollapsed && link.name}
               </Button>

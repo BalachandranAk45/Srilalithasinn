@@ -163,14 +163,14 @@ const BookingSummary = () => {
   };
 
   return (
-    <Box>
+    <Box p={30}>
       {/* Heading section */}
-      <VStack align="start" spacing={2} mb={6} mt="20px">
+      <VStack align="start" spacing={2} mb={6} mt="20px" >
         <Heading
           fontSize={{ base: "xl", md: "2xl" }}
           fontWeight="600"
           color="purple.700"
-          mt="30px" // 23 * 4px (Chakra spacing equivalent)
+          mt="15px" // 23 * 4px (Chakra spacing equivalent)
         >
           Today’s Bookings
         </Heading>
@@ -265,7 +265,6 @@ const BookingSummary = () => {
                   </Td>
 
                   <Td>
-                  
                     <HStack spacing={3}>
                       {/* Preview Eye Icon */}
                       <IconButton
