@@ -207,6 +207,7 @@ app.get("/api/bookings", (req, res) => {
         c.customer_name AS name,
         c.mobile,
         c.booking_no,
+        GROUP_CONCAT(b.booking_id) AS booking_ids,         -- added booking_ids
         GROUP_CONCAT(b.room_no SEPARATOR ', ') AS room_no,
         GROUP_CONCAT(b.room_type SEPARATOR ', ') AS room_types,
         SUM(b.room_amount) AS total_amount,
@@ -223,11 +224,17 @@ app.get("/api/bookings", (req, res) => {
     db.query(sql, [limit, offset], (err, results) => {
       if (err) return res.status(500).json({ message: "Fetch bookings error", error: err.sqlMessage });
 
+      // Optional: convert booking_ids string to array
+      const bookings = results.map((r) => ({
+        ...r,
+        booking_ids: r.booking_ids.split(",").map(Number),
+      }));
+
       res.json({
         page,
         totalPages,
         totalRecords: total,
-        bookings: results,
+        bookings,
       });
     });
   });

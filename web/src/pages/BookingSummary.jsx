@@ -64,14 +64,27 @@ const BookingSummary = () => {
     }
   };
 
-  const handleStatusChange = async (bookingId, newStatus) => {
+  const handleStatusChange = async (bookingIds, newStatus) => {
+    if (!bookingIds || bookingIds.length === 0) return;
+
+    // Pick the first booking ID for the API call
+    const bookingId = Number(bookingIds[0]);
+    if (isNaN(bookingId)) return console.error("Invalid booking ID");
+
     try {
       await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      setBookings((prev) => prev.map((b) => (b.booking_id === bookingId ? { ...b, status: newStatus } : b)));
+
+      // Update local state
+      setBookings((prev) =>
+        prev.map((b) => {
+          const ids = Array.isArray(b.booking_ids) ? b.booking_ids : [b.booking_id];
+          return ids.includes(bookingId) ? { ...b, status: newStatus } : b;
+        })
+      );
     } catch (err) {
       console.error("Update status error:", err);
     }
@@ -254,7 +267,7 @@ const BookingSummary = () => {
                     <Select
                       size="sm"
                       value={b.status}
-                      onChange={(e) => handleStatusChange(b.booking_id, e.target.value)}
+                      onChange={(e) => handleStatusChange(b.booking_ids, e.target.value)}
                       borderColor={statusColors[b.status]}
                     >
                       <option value="Booked">Booked</option>
