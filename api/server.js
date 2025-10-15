@@ -239,6 +239,69 @@ app.get("/api/bookings", (req, res) => {
     });
   });
 });
+app.get("/api/online-enquiries", (req, res) => {
+  let { page, limit, fromDate, toDate } = req.query;
+
+  page = parseInt(page) || 1;
+  limit = parseInt(limit) || 10;
+  const offset = (page - 1) * limit;
+
+  // Build base SQL
+  let countSql = "SELECT COUNT(*) AS total FROM online_enquiries WHERE 1=1";
+  let dataSql = `
+    SELECT 
+      id, 
+      name, 
+      email, 
+      phone, 
+      DATE_FORMAT(check_in, '%Y-%m-%d') AS checkIn, 
+      DATE_FORMAT(check_out, '%Y-%m-%d') AS checkOut,
+      created_at
+    FROM online_enquiries
+    WHERE 1=1
+  `;
+
+  const params = [];
+
+  // Apply date filters if provided
+  if (fromDate) {
+    countSql += " AND check_in >= ?";
+    dataSql += " AND check_in >= ?";
+    params.push(fromDate);
+  }
+
+  if (toDate) {
+    countSql += " AND check_out <= ?";
+    dataSql += " AND check_out <= ?";
+    params.push(toDate);
+  }
+
+  // Count total records first
+  db.query(countSql, params, (err, countResult) => {
+    if (err)
+      return res.status(500).json({ message: "Count error", error: err.sqlMessage });
+
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    // Add sorting and pagination
+    dataSql += " ORDER BY check_in DESC LIMIT ? OFFSET ?";
+    const finalParams = [...params, limit, offset];
+
+    db.query(dataSql, finalParams, (err, results) => {
+      if (err)
+        return res.status(500).json({ message: "Fetch enquiries error", error: err.sqlMessage });
+
+      res.json({
+        page,
+        totalPages,
+        totalRecords: total,
+        enquiries: results,
+      });
+    });
+  });
+});
+
 
 // ====================
 // GENERATE BILL BY CUSTOMER ID
