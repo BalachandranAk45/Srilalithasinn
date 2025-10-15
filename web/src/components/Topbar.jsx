@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import {
   Flex,
   IconButton,
@@ -13,6 +13,12 @@ import {
   MenuItem,
   VStack,
   Text,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverHeader,
+  PopoverBody,
+  PopoverArrow,
   Divider,
   Box,
   HStack,
@@ -23,13 +29,16 @@ import { HiMenuAlt3 } from "react-icons/hi";
 import { FiBell } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import { NotificationContext } from "../context/NotificationContext";
 
 export default function Topbar({ onLogout }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
 
+  const { newBookings, resetNewBookings } = useContext(NotificationContext);
+
   const handleLogout = () => {
-    localStorage.clear();
+    sessionStorage.clear();
     if (onLogout) onLogout();
     navigate("/login");
   };
@@ -50,9 +59,8 @@ export default function Topbar({ onLogout }) {
         zIndex="1000"
         width="100%"
         height="64px"
-        margin="0"
       >
-        {/* Left: Hamburger (for mobile) */}
+        {/* Hamburger for mobile */}
         <IconButton
           display={{ base: "flex", md: "none" }}
           icon={<HiMenuAlt3 size="22" />}
@@ -61,23 +69,47 @@ export default function Topbar({ onLogout }) {
           variant="ghost"
         />
 
-        {/* Center: App Title */}
-        <Box fontWeight="700" fontSize="lg" color="purple.700" letterSpacing="wide"></Box>
+        <Box fontWeight="700" fontSize="lg" color="purple.700" />
 
-        {/* Right: Notification + Profile */}
+        {/* Notification + Profile */}
         <HStack spacing={4}>
-          {/* Notification Icon */}
-          <Tooltip label="Notifications" fontSize="sm" hasArrow>
-            <Box position="relative">
-              <IconButton
-                icon={<FiBell size="20" />}
-                aria-label="notifications"
-                variant="ghost"
-                borderRadius="full"
-                color="gray.600"
-                _hover={{ bg: "gray.100" }}
-                onClick={() => navigate("/online-enquiries")} // Redirect on click
-              />
+          <Box position="relative">
+            <Popover placement="bottom-end" isLazy>
+              <PopoverTrigger>
+                <IconButton
+                  icon={<FiBell size="20" />}
+                  aria-label="notifications"
+                  variant="ghost"
+                  borderRadius="full"
+                  color="gray.600"
+                  _hover={{ bg: "gray.100" }}
+                  onClick={() => {
+                    resetNewBookings(); // clear count
+                    setTimeout(() => navigate("/online-enquiries"), 0); // then navigate
+                  }}
+                />
+              </PopoverTrigger>
+              <PopoverContent w="200px" borderRadius="md" boxShadow="md">
+                <PopoverArrow />
+                <PopoverHeader fontWeight="600" borderBottom="1px solid" borderColor="gray.200">
+                  Notifications
+                </PopoverHeader>
+                <PopoverBody>
+                  {newBookings > 0 ? (
+                    <Text fontSize="sm">
+                      {newBookings} new booking{newBookings > 1 ? "s" : ""} received
+                    </Text>
+                  ) : (
+                    <Text fontSize="sm" color="gray.500">
+                      No new bookings
+                    </Text>
+                  )}
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
+
+            {/* Small badge */}
+            {newBookings > 0 && (
               <Badge
                 position="absolute"
                 top="1"
@@ -88,12 +120,11 @@ export default function Topbar({ onLogout }) {
                 borderRadius="full"
                 px={1}
               >
-                2
+                {newBookings}
               </Badge>
-            </Box>
-          </Tooltip>
+            )}
+          </Box>
 
-          {/* Profile Avatar */}
           <Menu placement="bottom-end">
             <MenuButton>
               <Avatar
@@ -123,7 +154,6 @@ export default function Topbar({ onLogout }) {
         </HStack>
       </Flex>
 
-      {/* Sidebar Drawer for Mobile */}
       <Drawer isOpen={isOpen} placement="left" onClose={onClose}>
         <DrawerOverlay />
         <DrawerContent>

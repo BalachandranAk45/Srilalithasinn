@@ -323,7 +323,8 @@ app.get("/api/online-enquiries", (req, res) => {
   // Apply date filters if provided
   if (fromDate) {
     countSql += " AND check_in >= ?";
-    dataSql += " AND check_in >= ?";
+    // Add sorting and pagination by creation date
+    dataSql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
     params.push(fromDate);
   }
 
@@ -445,6 +446,38 @@ app.patch("/api/bookings/status", (req, res) => {
     if (err) return res.status(500).json({ message: "Update booking status error", error: err.sqlMessage });
     res.json({ message: "Booking status updated successfully", updatedRows: result.affectedRows, status });
   });
+});
+
+let lastSeenBookingId = 0;
+
+// GET /new-count → returns number of new bookings since lastSeenBookingId
+app.get("/api/online-bookings/new-count", (req, res) => {
+  const countQuery = `
+    SELECT COUNT(*) AS newCount, COALESCE(MAX(id), ?) AS maxId
+    FROM online_booking
+    WHERE id > ?
+  `;
+
+  db.query(countQuery, [lastSeenBookingId, lastSeenBookingId], (err, result) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err.sqlMessage });
+
+    const newCount = result[0]?.newCount || 0;
+    const maxId = result[0]?.maxId || lastSeenBookingId;
+
+    res.json({ newCount, maxId });
+  });
+});
+
+// POST /mark-seen → reset the badge by updating lastSeenBookingId
+app.post("/api/online-bookings/mark-seen", (req, res) => {
+  const { maxId } = req.body;
+
+  if (!maxId) {
+    return res.status(400).json({ message: "maxId is required" });
+  }
+
+  lastSeenBookingId = maxId; // update global last seen
+  res.json({ success: true, lastSeenBookingId });
 });
 
 // --------------------

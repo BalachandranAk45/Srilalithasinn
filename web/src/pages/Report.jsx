@@ -96,7 +96,7 @@ const ReportPage = () => {
           fontSize={{ base: "xl", md: "2xl" }}
           fontWeight="600"
           color="purple.700"
-          mt={10}
+          mt={8}
           mb={{ base: 3, md: 0 }}
         >
           Report

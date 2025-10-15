@@ -82,44 +82,66 @@ export default function BookingPage() {
 
   useEffect(() => {
     const booking = location.state?.bookingData;
-    if (booking) {
-      setOnlineId(booking.id || null);
-      setCustomer((prev) => ({
-        ...prev,
-        name: booking.cusname || prev.name,
-        mobile: booking.phone || prev.mobile,
-        email: booking.email || prev.email,
-      }));
-      if (booking.check_in) setFromDate(new Date(booking.check_in));
-      if (booking.check_out) setToDate(new Date(booking.check_out));
-      if (booking.rooms && Array.isArray(booking.rooms)) {
-        const roomIds = [];
-        const prices = {};
-        const occ = {};
-        booking.rooms.forEach((r) => {
-          const asset = assets.find((a) => a.label === r.room_no);
-          if (asset) {
-            roomIds.push(asset.id);
-            prices[asset.id] = r.room_amount || asset.price;
-            occ[asset.id] = { adults: r.adults || 1, children: r.children || 0 };
-          }
-        });
-        setSelected(roomIds);
-        setRoomPrices(prices);
-        setOccupancy(occ);
-      }
+    if (!booking) return;
+
+    setOnlineId(booking.id || null);
+    setCustomer((prev) => ({
+      ...prev,
+      name: booking.cusname || prev.name,
+      mobile: booking.phone || prev.mobile,
+      email: booking.email || prev.email,
+    }));
+
+    if (booking.check_in) setFromDate(new Date(booking.check_in));
+    if (booking.check_out) setToDate(new Date(booking.check_out));
+
+    if (booking.rooms && Array.isArray(booking.rooms)) {
+      const roomIds = [];
+      const prices = {};
+      const occ = {};
+      booking.rooms.forEach((r) => {
+        const asset = assets.find((a) => a.label === r.room_no);
+        if (asset) {
+          roomIds.push(asset.id);
+          prices[asset.id] = r.room_amount || asset.price;
+          occ[asset.id] = { adults: r.adults || 1, children: r.children || 0 };
+        }
+      });
+      setSelected(roomIds);
+      setRoomPrices(prices);
+      setOccupancy(occ);
     }
-  }, [location.state, assets]);
+  }, [location.state]); // remove assets
 
-  const handleFromDateChange = (date) => {
-    setFromDate(date);
-    fetchAvailability(date, toDate);
-  };
+  const handleFromDateChange = (date) => setFromDate(date);
+  const handleToDateChange = (date) => setToDate(date);
 
-  const handleToDateChange = (date) => {
-    setToDate(date);
-    fetchAvailability(fromDate, date);
-  };
+  useEffect(() => {
+    const fetchAvailabilityForCurrentDates = async () => {
+      try {
+        const fromStr = fromDate.toLocaleDateString("en-CA");
+        const toStr = toDate.toLocaleDateString("en-CA");
+
+        const res = await fetch(`http://localhost:5000/api/check-availability?from=${fromStr}&to=${toStr}`);
+        const data = await res.json();
+
+        const availObj = {};
+        data.forEach((room) => {
+          availObj[room.id] = room.isAvailable;
+        });
+
+        setAvailability(availObj);
+
+        // Remove rooms from selection if they are now unavailable
+        setSelected((prev) => prev.filter((id) => availObj[id]));
+      } catch (err) {
+        console.error("Availability check failed:", err);
+        showStatusToast("error", "Failed to check availability.");
+      }
+    };
+
+    fetchAvailabilityForCurrentDates();
+  }, [fromDate, toDate]); // Runs whenever either date changes
 
   const fetchAvailability = async (from, to) => {
     try {
@@ -249,7 +271,7 @@ export default function BookingPage() {
     <Box p={{ base: 4, md: 8 }}>
       <ToastMessageContainer />
 
-      <Box position="sticky" top="0" zIndex="sticky" py={{ base: 3, md: 4 }} px={0} bg="white">
+      <Box position="sticky" top="0" zIndex="sticky" py={{ base: 3, md: 4 }} px={0} bg="transparent" mt={4}>
         <Heading fontSize={{ base: "lg", md: "2xl" }} fontWeight="600" color="purple.700">
           Room Booking
         </Heading>

@@ -174,7 +174,7 @@ const BookingSummary = () => {
   return (
     <Box p={{ base: 4, md: 8 }}>
       {/* Heading */}
-      <VStack align="start" spacing={2} mb={6} mt="4">
+      <VStack align="start" spacing={2} mb={6} mt={8}>"
         <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
           Our Bookings
         </Heading>

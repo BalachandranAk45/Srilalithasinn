@@ -162,7 +162,7 @@ export default function ExpensePage() {
       {/* Header */}
       <Flex justify="space-between" align="center" mb={6} wrap="wrap">
         <VStack align="start" spacing={1}>
-          <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700" mt={10}>
+          <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700" mt={8}>
             Expense Report
           </Heading>
         </VStack>
