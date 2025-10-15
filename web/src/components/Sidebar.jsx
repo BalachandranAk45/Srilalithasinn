@@ -24,6 +24,7 @@ export default function Sidebar() {
     { name: "Summary", path: "/summary", icon: <FiUser /> },
     { name: "Report", path: "/report", icon: <FiFileText /> },
     { name: "Expense", path: "/expense", icon: <FiCalendar /> },
+    { name: "Online Enquiries", path: "/online-enquiries", icon: <FiFileText /> },
   ];
 
   return (

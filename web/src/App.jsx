@@ -8,6 +8,7 @@ import BookingPage from "./pages/Booking";
 import BookingSummary from "./pages/BookingSummary";
 import Login from "./pages/Login";
 import ReportPage from "./pages/Report";
+import OnlineEnquiries from "./pages/Onlineenquires";
 
 function App() {
   // Use sessionStorage instead of localStorage
@@ -38,6 +39,7 @@ function App() {
               <Route path="summary" element={<BookingSummary />} />
               <Route path="report" element={<ReportPage />} />
               <Route path="expense" element={<ExpensePage />} />
+              <Route path="online-enquiries" element={<OnlineEnquiries />} />
             </Route>
           ) : (
             // Redirect unauthenticated users to login page
