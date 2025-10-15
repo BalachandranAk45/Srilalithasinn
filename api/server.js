@@ -112,7 +112,7 @@ app.get("/api/check-availability", (req, res) => {
 // Add Booking
 // --------------------
 app.post("/api/addbooking", (req, res) => {
-  const { customer, fromDate, toDate, rooms, total_amount } = req.body;
+  const { online_id, customer, fromDate, toDate, rooms, total_amount } = req.body;
 
   if (!customer || !fromDate || !toDate || !rooms || rooms.length === 0) {
     return res.status(400).json({ message: "Invalid booking data" });
@@ -124,7 +124,7 @@ app.post("/api/addbooking", (req, res) => {
     try {
       const booking_no = generateBookingNo();
 
-      // Insert customer
+      // Insert customer into 'customers' table
       const customerSQL =
         "INSERT INTO customers (booking_no, customer_name, mobile, aadhar, address) VALUES (?, ?, ?, ?, ?)";
       const [customerResult] = await new Promise((resolve, reject) =>
@@ -136,9 +136,9 @@ app.post("/api/addbooking", (req, res) => {
       );
       const customer_id = customerResult.insertId;
 
-      // Insert rooms with availability check
+      // Insert into booking_details and update online_booking sts
       for (const room of rooms) {
-        // Check if room already booked
+        // Optional: check if room already booked in booking_details
         const checkSQL = `
           SELECT COUNT(*) AS cnt 
           FROM booking_details 
@@ -154,7 +154,7 @@ app.post("/api/addbooking", (req, res) => {
           return res.status(400).json({ message: `Room ${room.room_no} is already booked for selected dates.` });
         }
 
-        // Insert booking
+        // Insert into booking_details
         const bookingSQL = `
           INSERT INTO booking_details (customer_id, room_no, room_type, from_date, to_date, room_amount) 
           VALUES (?, ?, ?, ?, ?, ?)
@@ -168,6 +168,19 @@ app.post("/api/addbooking", (req, res) => {
         );
       }
 
+      // Update online_booking sts = 1 for the given online_id
+      if (online_id) {
+        const updateOnlineSQL = `
+          UPDATE online_booking 
+          SET sts = 1, updated_at = NOW() 
+          WHERE id = ?
+        `;
+        const updateResult = await new Promise((resolve, reject) =>
+          db.query(updateOnlineSQL, [online_id], (err, result) => (err ? reject(err) : resolve(result)))
+        );
+        console.log("Online booking update result:", updateResult);
+      }
+
       db.commit((err) => {
         if (err) return db.rollback(() => res.status(500).json({ message: "Commit failed", error: err.message }));
         res.json({ message: "Booking successful", booking_no });
@@ -175,6 +188,50 @@ app.post("/api/addbooking", (req, res) => {
     } catch (error) {
       db.rollback(() => res.status(500).json({ message: "Booking failed", error: error.message }));
     }
+  });
+});
+app.get("/api/online-bookings", (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const from = req.query.from || "";
+  const to = req.query.to || "";
+  const offset = (page - 1) * limit;
+
+  let whereClause = "WHERE 1=1";
+  const params = [];
+
+  if (from) {
+    whereClause += " AND check_in >= ?";
+    params.push(from);
+  }
+  if (to) {
+    whereClause += " AND check_out <= ?";
+    params.push(to);
+  }
+
+  const countSQL = `SELECT COUNT(*) AS total FROM online_booking ${whereClause}`;
+  db.query(countSQL, params, (err, countResult) => {
+    if (err) return res.status(500).json({ message: "Failed to fetch online bookings", error: err.message });
+
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    const dataSQL = `
+      SELECT * FROM online_booking
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+    db.query(dataSQL, [...params, limit, offset], (err, rows) => {
+      if (err) return res.status(500).json({ message: "Failed to fetch online bookings", error: err.message });
+
+      res.json({
+        bookings: rows, // <-- this must be an array
+        page,
+        totalPages,
+        total,
+      });
+    });
   });
 });
 
@@ -278,8 +335,7 @@ app.get("/api/online-enquiries", (req, res) => {
 
   // Count total records first
   db.query(countSql, params, (err, countResult) => {
-    if (err)
-      return res.status(500).json({ message: "Count error", error: err.sqlMessage });
+    if (err) return res.status(500).json({ message: "Count error", error: err.sqlMessage });
 
     const total = countResult[0].total;
     const totalPages = Math.ceil(total / limit);
@@ -289,8 +345,7 @@ app.get("/api/online-enquiries", (req, res) => {
     const finalParams = [...params, limit, offset];
 
     db.query(dataSql, finalParams, (err, results) => {
-      if (err)
-        return res.status(500).json({ message: "Fetch enquiries error", error: err.sqlMessage });
+      if (err) return res.status(500).json({ message: "Fetch enquiries error", error: err.sqlMessage });
 
       res.json({
         page,
@@ -301,7 +356,6 @@ app.get("/api/online-enquiries", (req, res) => {
     });
   });
 });
-
 
 // ====================
 // GENERATE BILL BY CUSTOMER ID
@@ -372,20 +426,27 @@ app.get("/api/generatebill/customer/:customer_id", (req, res) => {
 // --------------------
 // Update Booking Status
 // --------------------
-app.patch("/api/bookings/:id/status", (req, res) => {
-  const bookingId = req.params.id;
-  const { status } = req.body;
+app.patch("/api/bookings/status", (req, res) => {
+  const { bookingIds, status } = req.body;
+
+  if (!Array.isArray(bookingIds) || bookingIds.length === 0) {
+    return res.status(400).json({ message: "bookingIds must be a non-empty array" });
+  }
 
   if (!["Booked", "CheckedIn", "CheckedOut", "Cancelled"].includes(status)) {
     return res.status(400).json({ message: "Invalid status value" });
   }
 
-  db.query("UPDATE booking_details SET status=? WHERE booking_id=?", [status, bookingId], (err, result) => {
+  const placeholders = bookingIds.map(() => "?").join(", ");
+  const sql = `UPDATE booking_details SET status=? WHERE booking_id IN (${placeholders})`;
+  const params = [status, ...bookingIds];
+
+  db.query(sql, params, (err, result) => {
     if (err) return res.status(500).json({ message: "Update booking status error", error: err.sqlMessage });
-    if (result.affectedRows === 0) return res.status(404).json({ message: "Booking not found" });
-    res.json({ message: "Booking status updated successfully", booking_id: bookingId, status });
+    res.json({ message: "Booking status updated successfully", updatedRows: result.affectedRows, status });
   });
 });
+
 // --------------------
 // REPORT API
 // --------------------

@@ -31,14 +31,14 @@ import { LuHotel, LuBuilding2 } from "react-icons/lu";
 import { MdOutlineMeetingRoom } from "react-icons/md";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-// NOTE: Assuming this path is correct for your project
 import { showStatusToast, ToastMessageContainer } from "../components/toast";
+import { useLocation } from "react-router-dom";
 
 export default function BookingPage() {
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
   const [selected, setSelected] = useState([]);
-  const [customer, setCustomer] = useState({ name: "", mobile: "", aadhar: "", address: "" });
+  const [customer, setCustomer] = useState({ name: "", mobile: "", email: "", aadhar: "", address: "" });
   const [occupancy, setOccupancy] = useState({});
   const [roomPrices, setRoomPrices] = useState({});
   const [totalPrice, setTotalPrice] = useState(0);
@@ -54,12 +54,11 @@ export default function BookingPage() {
     toDate: "",
     rooms: "",
   });
+  const [onlineId, setOnlineId] = useState(null);
 
-  // Room details modal
   const { isOpen, onOpen, onClose } = useDisclosure();
-
-  // Booking confirmation modal
   const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
+  const location = useLocation();
 
   const assets = [
     { id: "room1", label: "S1", price: 2000, beds: 2, type: "Standard", maxIncluded: 2, icon: LuHotel },
@@ -78,32 +77,69 @@ export default function BookingPage() {
   // Fetch availability whenever dates change
   // -----------------------------
   useEffect(() => {
-    if (!fromDate || !toDate) return;
+    fetchAvailability(fromDate, toDate);
+  }, []);
 
-    const fetchAvailability = async () => {
-      try {
-        const from = fromDate.toISOString().split("T")[0];
-        const to = toDate.toISOString().split("T")[0];
-        const res = await fetch(`http://localhost:5000/api/check-availability?from=${from}&to=${to}`);
-        const data = await res.json();
-        const availObj = {};
-        data.forEach((room) => {
-          availObj[room.id] = room.isAvailable;
+  useEffect(() => {
+    const booking = location.state?.bookingData;
+    if (booking) {
+      setOnlineId(booking.id || null);
+      setCustomer((prev) => ({
+        ...prev,
+        name: booking.cusname || prev.name,
+        mobile: booking.phone || prev.mobile,
+        email: booking.email || prev.email,
+      }));
+      if (booking.check_in) setFromDate(new Date(booking.check_in));
+      if (booking.check_out) setToDate(new Date(booking.check_out));
+      if (booking.rooms && Array.isArray(booking.rooms)) {
+        const roomIds = [];
+        const prices = {};
+        const occ = {};
+        booking.rooms.forEach((r) => {
+          const asset = assets.find((a) => a.label === r.room_no);
+          if (asset) {
+            roomIds.push(asset.id);
+            prices[asset.id] = r.room_amount || asset.price;
+            occ[asset.id] = { adults: r.adults || 1, children: r.children || 0 };
+          }
         });
-        setAvailability(availObj);
-        setSelected((prev) => prev.filter((id) => availObj[id]));
-      } catch (err) {
-        console.error("Availability check failed:", err);
-        showStatusToast("error", "Failed to check availability.");
+        setSelected(roomIds);
+        setRoomPrices(prices);
+        setOccupancy(occ);
       }
-    };
+    }
+  }, [location.state, assets]);
 
-    fetchAvailability();
-  }, [fromDate, toDate]);
+  const handleFromDateChange = (date) => {
+    setFromDate(date);
+    fetchAvailability(date, toDate);
+  };
 
-  // -----------------------------
-  // Open room modal
-  // -----------------------------
+  const handleToDateChange = (date) => {
+    setToDate(date);
+    fetchAvailability(fromDate, date);
+  };
+
+  const fetchAvailability = async (from, to) => {
+    try {
+      const fromStr = from.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+      const toStr = to.toLocaleDateString("en-CA");
+
+      const res = await fetch(`http://localhost:5000/api/check-availability?from=${fromStr}&to=${toStr}`);
+      const data = await res.json();
+      const availObj = {};
+      data.forEach((room) => {
+        availObj[room.id] = room.isAvailable;
+      });
+      setAvailability(availObj);
+      setSelected((prev) => prev.filter((id) => availObj[id]));
+    } catch (err) {
+      console.error("Availability check failed:", err);
+      showStatusToast("error", "Failed to check availability.");
+    }
+  };
+
   const openModal = (asset) => {
     if (availability[asset.id] === false) {
       showStatusToast("error", `${asset.label} is not available for selected dates.`);
@@ -123,9 +159,6 @@ export default function BookingPage() {
     showStatusToast("success", `${currentAsset.label} added to booking.`);
   };
 
-  // -----------------------------
-  // Calculate total price
-  // -----------------------------
   useEffect(() => {
     let total = 0;
     selected.forEach((id) => {
@@ -134,9 +167,6 @@ export default function BookingPage() {
     setTotalPrice(total);
   }, [selected, roomPrices, assets]);
 
-  // -----------------------------
-  // Open confirmation modal
-  // -----------------------------
   const handleConfirmBooking = () => {
     const newErrors = {
       name: customer.name ? "" : "Name is required",
@@ -160,21 +190,14 @@ export default function BookingPage() {
 
     const hasError = Object.values(newErrors).some((err) => err !== "");
 
-    // Show toast only for room selection
-    if (newErrors.rooms) {
-      showStatusToast("error", newErrors.rooms);
-    }
+    if (newErrors.rooms) showStatusToast("error", newErrors.rooms);
 
-    if (!hasError) {
-      onConfirmOpen();
-    }
+    if (!hasError) onConfirmOpen();
   };
 
-  // -----------------------------
-  // Final booking from modal
-  // -----------------------------
   const confirmBooking = async () => {
     const payload = {
+      online_id: onlineId,
       customer,
       fromDate: fromDate.toISOString().split("T")[0],
       toDate: toDate.toISOString().split("T")[0],
@@ -202,8 +225,7 @@ export default function BookingPage() {
       const data = await response.json();
       if (response.ok) {
         showStatusToast("success", `Booking confirmed! Booking No: ${data.booking_no}`);
-        // Reset form
-        setCustomer({ name: "", mobile: "", aadhar: "", address: "" });
+        setCustomer({ name: "", mobile: "", aadhar: "", address: "", email: "" });
         setSelected([]);
         setOccupancy({});
         setRoomPrices({});
@@ -225,11 +247,9 @@ export default function BookingPage() {
   // -----------------------------
   return (
     <Box p={{ base: 4, md: 8 }}>
-      {/* Toast container */}
       <ToastMessageContainer />
 
-      {/* STICKY HEADER */}
-      <Box position="sticky" top="0" zIndex="sticky" py={{ base: 3, md: 4 }} px={{ base: 0, md: 0 }} bg="white">
+      <Box position="sticky" top="0" zIndex="sticky" py={{ base: 3, md: 4 }} px={0} bg="white">
         <Heading fontSize={{ base: "lg", md: "2xl" }} fontWeight="600" color="purple.700">
           Room Booking
         </Heading>
@@ -252,10 +272,7 @@ export default function BookingPage() {
                   border={isSelected ? "2px solid purple" : "1px solid #e2e8f0"}
                   cursor={isAvailable ? "pointer" : "not-allowed"}
                   onClick={() => isAvailable && openModal(asset)}
-                  _hover={{
-                    transform: isAvailable ? "scale(1.05)" : "none",
-                    shadow: isAvailable ? "md" : "sm",
-                  }}
+                  _hover={{ transform: isAvailable ? "scale(1.05)" : "none", shadow: isAvailable ? "md" : "sm" }}
                   textAlign="center"
                   opacity={isAvailable ? 1 : 0.5}
                   title={isAvailable ? "" : "Room not available"}
@@ -288,7 +305,6 @@ export default function BookingPage() {
       <Card shadow="lg" borderRadius="2xl" bg="white" mb="6">
         <CardBody>
           <VStack spacing={6} align="stretch">
-            {/* Dates */}
             <SimpleGrid columns={{ base: 1, sm: 2 }} spacing={4}>
               <Box>
                 <Text fontWeight="600" color="purple.700" mb={2}>
@@ -296,7 +312,7 @@ export default function BookingPage() {
                 </Text>
                 <DatePicker
                   selected={fromDate}
-                  onChange={setFromDate}
+                  onChange={handleFromDateChange}
                   selectsStart
                   startDate={fromDate}
                   endDate={toDate}
@@ -316,11 +332,11 @@ export default function BookingPage() {
                 </Text>
                 <DatePicker
                   selected={toDate}
-                  onChange={setToDate}
+                  onChange={handleToDateChange}
                   selectsEnd
                   startDate={fromDate}
                   endDate={toDate}
-                  minDate={fromDate > new Date() ? fromDate : new Date()}
+                  minDate={fromDate || new Date()}
                   dateFormat="dd/MM/yyyy"
                   customInput={<Input />}
                 />
@@ -357,6 +373,11 @@ export default function BookingPage() {
                   {errors.mobile}
                 </Text>
               )}
+              <Input
+                placeholder="Email (Optional)"
+                value={customer.email}
+                onChange={(e) => setCustomer({ ...customer, email: e.target.value })}
+              />
               <Input
                 placeholder="Aadhaar Number"
                 value={customer.aadhar}
@@ -395,7 +416,7 @@ export default function BookingPage() {
         </Button>
       </Box>
 
-      {/* Modal for Room Details */}
+      {/* Room Details Modal */}
       {currentAsset && (
         <Modal isOpen={isOpen} onClose={onClose}>
           <ModalOverlay />
@@ -473,7 +494,7 @@ export default function BookingPage() {
         </Modal>
       )}
 
-      {/* Booking Confirmation Modal (Cleaned up, using the 'Professional' version structure) */}
+      {/* Booking Confirmation Modal */}
       <Modal isOpen={isConfirmOpen} onClose={onConfirmClose} size="2xl" isCentered scrollBehavior="inside">
         <ModalOverlay bg="blackAlpha.600" />
         <ModalContent borderRadius="2xl" p={6}>
@@ -481,10 +502,9 @@ export default function BookingPage() {
             Booking Confirmation
           </ModalHeader>
           <ModalCloseButton />
-
           <ModalBody>
             <VStack spacing={6} align="stretch">
-              {/* Customer Details */}
+              {/* Customer Info */}
               <Box p={5} bg="gray.50" borderRadius="xl" shadow="sm">
                 <Text fontWeight="700" color="purple.600" mb={3}>
                   Customer Information
@@ -520,7 +540,7 @@ export default function BookingPage() {
                 </HStack>
               </Box>
 
-              {/* Rooms & Occupancy Table */}
+              {/* Rooms Summary */}
               <Box p={5} bg="gray.50" borderRadius="xl" shadow="sm">
                 <Text fontWeight="700" color="purple.600" mb={3}>
                   Rooms Summary
@@ -554,7 +574,6 @@ export default function BookingPage() {
               </Box>
             </VStack>
           </ModalBody>
-
           <ModalFooter justifyContent="center">
             <Button colorScheme="purple" size="lg" mr={4} onClick={confirmBooking}>
               Confirm Booking

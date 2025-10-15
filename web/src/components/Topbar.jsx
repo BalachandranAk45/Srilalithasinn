@@ -62,13 +62,7 @@ export default function Topbar({ onLogout }) {
         />
 
         {/* Center: App Title */}
-        <Box
-          fontWeight="700"
-          fontSize="lg"
-          color="purple.700"
-          letterSpacing="wide"
-        >
-        </Box>
+        <Box fontWeight="700" fontSize="lg" color="purple.700" letterSpacing="wide"></Box>
 
         {/* Right: Notification + Profile */}
         <HStack spacing={4}>
@@ -82,6 +76,7 @@ export default function Topbar({ onLogout }) {
                 borderRadius="full"
                 color="gray.600"
                 _hover={{ bg: "gray.100" }}
+                onClick={() => navigate("/online-enquiries")} // Redirect on click
               />
               <Badge
                 position="absolute"

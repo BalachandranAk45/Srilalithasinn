@@ -9,100 +9,87 @@ import {
   Tr,
   Th,
   Td,
-  VStack,
   HStack,
   useColorModeValue,
-  Card,
-  CardBody,
-  SimpleGrid,
   Input,
   IconButton,
   Button,
 } from "@chakra-ui/react";
+import { FiSearch, FiSend, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { FiSearch } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
-const OnlineEnquiries = () => {
+const OnlineBookings = () => {
+  const navigate = useNavigate();
   const cardBg = useColorModeValue("white", "gray.800");
 
-  const [enquiries, setEnquiries] = useState([]);
+  const [bookings, setBookings] = useState([]);
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const limit = 10;
 
-  // Fetch enquiries from backend
-  const fetchEnquiries = async (pageNum = 1) => {
+  const formatDate = (date) => {
+    if (!date) return "";
+    const d = new Date(date);
+    const tzOffset = d.getTimezoneOffset() * 60000; // offset in ms
+    const localISO = new Date(d - tzOffset).toISOString().split("T")[0];
+    return localISO;
+  };
+
+  const fetchBookings = async (pageNum = 1) => {
     try {
-      const params = new URLSearchParams();
-      params.append("page", pageNum);
-      params.append("limit", limit);
+      const from = formatDate(fromDate);
+      const to = formatDate(toDate);
 
-      const formatDate = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        return `${year}-${month}-${day}`;
-      };
+      const res = await fetch(
+        `http://localhost:5000/api/online-bookings?page=${pageNum}&limit=${limit}&from=${from}&to=${to}`
+      );
 
-      if (fromDate) params.append("fromDate", formatDate(fromDate));
-      if (toDate) params.append("toDate", formatDate(toDate));
-
-      const res = await fetch(`http://localhost:5000/api/online-enquiries?${params.toString()}`);
       const data = await res.json();
 
-      // Convert string dates to Date objects
-      const formattedData = data.enquiries.map((e) => ({
-        ...e,
-        checkIn: new Date(e.checkIn),
-        checkOut: new Date(e.checkOut),
+      if (!res.ok) throw new Error(data.message || "Failed to fetch bookings");
+
+      const bookingsArray = Array.isArray(data.bookings) ? data.bookings : [];
+      const formattedData = bookingsArray.map((b) => ({
+        ...b,
+        check_in: b.check_in ? new Date(b.check_in) : null,
+        check_out: b.check_out ? new Date(b.check_out) : null,
       }));
 
-      setEnquiries(formattedData);
-      setPage(data.page);
-      setTotalPages(data.totalPages);
+      setBookings(formattedData);
+      setPage(data.page || pageNum);
+      setTotalPages(data.totalPages || 1);
     } catch (err) {
-      console.error("Error fetching enquiries:", err);
+      console.error("Error fetching bookings:", err);
     }
   };
 
   useEffect(() => {
-    fetchEnquiries();
+    fetchBookings(page);
   }, []);
 
-  const handleSearch = () => {
-    fetchEnquiries(1); // reset to first page
+  const handleSubmit = (booking) => {
+    navigate("/booking", { state: { bookingData: booking } });
   };
 
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      fetchEnquiries(newPage);
-    }
+    if (newPage < 1 || newPage > totalPages) return;
+    fetchBookings(newPage);
   };
 
   return (
     <Box p={8}>
-      {/* Heading + Date Filters */}
-      <Box
-        mb={6}
-        display="flex"
-        flexDirection={{ base: "column", md: "row" }}
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        <Heading
-          fontSize={{ base: "xl", md: "2xl" }}
-          fontWeight="600"
-          color="purple.700"
-          mt={10}
-          mb={{ base: 3, md: 0 }}
-        >
+      <HStack mb={6} w="100%" justify="space-between" align="end">
+        {/* Heading */}
+        <Heading fontSize={{ base: "xl", md: "2xl" }} color="purple.700">
           Online Enquiries
         </Heading>
 
-        <HStack spacing={3}>
+        {/* Filters + Search */}
+        <HStack spacing={3} align="end">
           {/* From Date */}
           <Box>
             <Text mb={1} fontSize="sm" color="gray.600">
@@ -134,92 +121,100 @@ const OnlineEnquiries = () => {
 
           {/* Search Button */}
           <IconButton
-            aria-label="Search Enquiries"
+            aria-label="Search Bookings"
             icon={<FiSearch />}
             colorScheme="purple"
-            onClick={handleSearch}
-            size="md"
-            mt={{ base: 4, md: 6 }}
+            onClick={() => fetchBookings(1)}
           />
         </HStack>
-      </Box>
+      </HStack>
 
-      {/* Desktop Table */}
-      <Box display={{ base: "none", md: "block" }} bg={cardBg} borderRadius="2xl" boxShadow="xl" p={6}>
+      {/* Bookings Table */}
+      <Box bg={cardBg} borderRadius="2xl" boxShadow="xl" p={6} overflowX="auto">
         <Table variant="simple" size="md">
           <Thead>
             <Tr bgGradient="linear(to-r, purple.600, purple.500)">
-              <Th color="white" fontSize="sm">Name</Th>
-              <Th color="white" fontSize="sm">Email</Th>
-              <Th color="white" fontSize="sm">Phone</Th>
-              <Th color="white" fontSize="sm">Check-In</Th>
-              <Th color="white" fontSize="sm">Check-Out</Th>
+              <Th color="white" fontSize="sm">
+                Customer Name
+              </Th>
+              <Th color="white" fontSize="sm">
+                Email
+              </Th>
+              <Th color="white" fontSize="sm">
+                Phone
+              </Th>
+              <Th color="white" fontSize="sm">
+                Check-In
+              </Th>
+              <Th color="white" fontSize="sm">
+                Check-Out
+              </Th>
+              <Th color="white" fontSize="sm" textAlign="center">
+                Action
+              </Th>
             </Tr>
           </Thead>
           <Tbody>
-            {enquiries.map((e, idx) => (
-              <Tr
-                key={e.id}
-                bg={idx % 2 === 0 ? "white" : "purple.50"}
-                _hover={{
-                  bg: "purple.100",
-                  transform: "translateY(-1px)",
-                  boxShadow: "md",
-                  transition: "all 0.2s",
-                }}
-              >
-                <Td>{e.name}</Td>
-                <Td>{e.email}</Td>
-                <Td>{e.phone}</Td>
-                <Td>{e.checkIn.toLocaleDateString()}</Td>
-                <Td>{e.checkOut.toLocaleDateString()}</Td>
+            {bookings.length > 0 ? (
+              bookings.map((b) => (
+                <Tr key={b.id} _hover={{ bg: "purple.50" }}>
+                  <Td>{b.cusname}</Td>
+                  <Td>{b.email || "-"}</Td>
+                  <Td>{b.phone}</Td>
+                  <Td>{b.check_in?.toLocaleDateString()}</Td>
+                  <Td>{b.check_out?.toLocaleDateString()}</Td>
+                  <Td textAlign="center">
+                    <IconButton
+                      aria-label="Submit Booking"
+                      icon={<FiSend />}
+                      isDisabled={b.sts === 1}
+                      size="sm"
+                      variant="solid"
+                      onClick={() => handleSubmit(b)}
+                      bg="transparent"
+                      _hover={{ bg: "purple.100", transform: "scale(1.1)" }}
+                    />
+                  </Td>
+                </Tr>
+              ))
+            ) : (
+              <Tr>
+                <Td colSpan="6" textAlign="center" color="gray.500" py={4}>
+                  No bookings found.
+                </Td>
               </Tr>
-            ))}
+            )}
           </Tbody>
         </Table>
 
         {/* Pagination */}
-        <HStack mt={4} justify="center" spacing={2}>
-          <Button onClick={() => handlePageChange(page - 1)} disabled={page === 1}>
-            Prev
-          </Button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+        <HStack justify="center" mt={4} spacing={2}>
+          <IconButton
+            aria-label="Previous Page"
+            icon={<FiChevronLeft />}
+            onClick={() => handlePageChange(page - 1)}
+            isDisabled={page === 1}
+          />
+          {Array.from({ length: totalPages }, (_, i) => (
             <Button
-              key={p}
+              key={i + 1}
               size="sm"
-              colorScheme={p === page ? "purple" : "gray"}
-              onClick={() => handlePageChange(p)}
+              colorScheme={page === i + 1 ? "purple" : "gray"}
+              onClick={() => handlePageChange(i + 1)}
             >
-              {p}
+              {i + 1}
             </Button>
           ))}
-
-          <Button onClick={() => handlePageChange(page + 1)} disabled={page === totalPages}>
-            Next
-          </Button>
+          <IconButton
+            aria-label="Next Page"
+            icon={<FiChevronRight />}
+            onClick={() => handlePageChange(page + 1)}
+            isDisabled={page === totalPages}
+          />
         </HStack>
       </Box>
-
-      {/* Mobile / Tablet View */}
-      <SimpleGrid columns={{ base: 1 }} spacing={4} display={{ base: "grid", md: "none" }} mt={2}>
-        {enquiries.map((e) => (
-          <Card key={e.id} bg={cardBg} shadow="md" borderRadius="xl">
-            <CardBody>
-              <VStack align="start" spacing={3}>
-                <Text fontWeight="600">
-                  {e.name} ({e.phone})
-                </Text>
-                <Text fontSize="sm">Email: {e.email}</Text>
-                <Text fontSize="sm">Check-In: {e.checkIn.toLocaleDateString()}</Text>
-                <Text fontSize="sm">Check-Out: {e.checkOut.toLocaleDateString()}</Text>
-              </VStack>
-            </CardBody>
-          </Card>
-        ))}
-      </SimpleGrid>
     </Box>
   );
 };
 
-export default OnlineEnquiries;
+export default OnlineBookings;
