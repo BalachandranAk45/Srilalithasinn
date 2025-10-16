@@ -467,6 +467,14 @@ app.get("/api/online-bookings/new-count", (req, res) => {
     res.json({ newCount, maxId });
   });
 });
+// Get latest booking ID (for initializing)
+app.get("/api/online-bookings/latest-id", (req, res) => {
+  const sql = "SELECT COALESCE(MAX(id), 0) AS latestId FROM online_booking";
+  db.query(sql, (err, result) => {
+    if (err) return res.status(500).json({ message: "DB error", error: err.sqlMessage });
+    res.json({ latestId: result[0].latestId });
+  });
+});
 
 // POST /mark-seen → reset the badge by updating lastSeenBookingId
 app.post("/api/online-bookings/mark-seen", (req, res) => {
