@@ -54,7 +54,7 @@ const BookingSummary = () => {
 
   const fetchBookings = async (pageNumber = 1) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/bookings?page=${pageNumber}&limit=${limit}`);
+      const res = await fetch(`http://localhost:8000/api/bookings?page=${pageNumber}&limit=${limit}`);
       const data = await res.json();
       setBookings(data.bookings);
       setPage(data.page);
@@ -68,7 +68,7 @@ const BookingSummary = () => {
     if (!bookingIds || bookingIds.length === 0) return;
 
     try {
-      await fetch(`http://localhost:5000/api/bookings/status`, {
+      await fetch(`http://localhost:8000/api/bookings/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bookingIds, status: newStatus }),
@@ -88,7 +88,7 @@ const BookingSummary = () => {
 
   const downloadInvoice = async (customerId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/generatebill/customer/${customerId}`);
+      const res = await fetch(`http://localhost:8000/api/generatebill/customer/${customerId}`);
       const data = await res.json();
 
       const div = document.createElement("div");
@@ -117,7 +117,7 @@ const BookingSummary = () => {
 
   const previewInvoice = async (customerId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/generatebill/customer/${customerId}`);
+      const res = await fetch(`http://localhost:8000/api/generatebill/customer/${customerId}`);
       const data = await res.json();
       setPreviewData(data);
       onOpen();
@@ -174,7 +174,8 @@ const BookingSummary = () => {
   return (
     <Box p={{ base: 4, md: 8 }}>
       {/* Heading */}
-      <VStack align="start" spacing={2} mb={6} mt={8}>"
+      <VStack align="start" spacing={2} mb={6} mt={8}>
+        "
         <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
           Our Bookings
         </Heading>

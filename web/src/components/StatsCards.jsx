@@ -1,12 +1,5 @@
 import React from "react";
-import {
-  SimpleGrid,
-  Box,
-  Text,
-  Flex,
-  Icon,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { SimpleGrid, Box, Text, Flex, Icon, useColorModeValue } from "@chakra-ui/react";
 import { FiDollarSign, FiShoppingCart, FiCheckCircle } from "react-icons/fi";
 
 export default function StatsCards() {
@@ -28,7 +21,7 @@ export default function StatsCards() {
               Earnings
             </Text>
             <Text fontSize="2xl" fontWeight="extrabold">
-              $5000
+              $8000
             </Text>
           </Box>
           <Icon as={FiDollarSign} boxSize={10} />

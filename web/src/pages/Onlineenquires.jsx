@@ -45,7 +45,7 @@ const OnlineBookings = () => {
       const to = formatDate(toDate);
 
       const res = await fetch(
-        `http://localhost:5000/api/online-bookings?page=${pageNum}&limit=${limit}&from=${from}&to=${to}`
+        `http://localhost:8000/api/online-bookings?page=${pageNum}&limit=${limit}&from=${from}&to=${to}`
       );
       const data = await res.json();
 

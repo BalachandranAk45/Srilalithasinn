@@ -1,6 +1,16 @@
 // src/pages/Dashboard.jsx
 import React from "react";
-import { Box, SimpleGrid, Text, Stat, StatLabel, StatNumber, StatHelpText, StatArrow, useColorModeValue } from "@chakra-ui/react";
+import {
+  Box,
+  SimpleGrid,
+  Text,
+  Stat,
+  StatLabel,
+  StatNumber,
+  StatHelpText,
+  StatArrow,
+  useColorModeValue,
+} from "@chakra-ui/react";
 import { Line, Bar, Pie, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -16,21 +26,11 @@ import {
 } from "chart.js";
 
 // Register all necessary chart components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
 
 // --- HELPER FUNCTIONS ---
 // Helper function to format currency in ₹
-const formatCurrency = (value) => `₹${value.toLocaleString('en-IN')}`;
+const formatCurrency = (value) => `₹${value.toLocaleString("en-IN")}`;
 
 // --- 1. STATS DATA ---
 const statsData = [
@@ -48,7 +48,7 @@ const lineData = {
   datasets: [
     {
       label: "Revenue (₹)",
-      data: [120000, 150000, 170000, 140000, 200000, 230000, 210000],
+      data: [120000, 180000, 170000, 140000, 200000, 230000, 210000],
       borderColor: "rgba(128,90,213,1)",
       backgroundColor: "rgba(128,90,213,0.2)",
       tension: 0.4,
@@ -77,7 +77,7 @@ const incomePieData = {
   datasets: [
     {
       label: "Income Distribution (₹)",
-      data: [1500000, 450000, 200000, 100000],
+      data: [1800000, 480000, 200000, 100000],
       backgroundColor: ["#38A169", "#48BB78", "#68D391", "#9AE6B4"],
       borderColor: "white",
       borderWidth: 2,
@@ -91,7 +91,7 @@ const expenseBarData = {
   datasets: [
     {
       label: "Expenses (₹)",
-      data: [100000, 50000, 30000, 40000, 30000],
+      data: [100000, 80000, 30000, 40000, 30000],
       backgroundColor: "#E53E3E",
       borderRadius: 6,
     },
@@ -100,19 +100,19 @@ const expenseBarData = {
 
 // 2.5 Average Daily Rate (ADR) Line Chart
 const adrLineData = {
-    labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    datasets: [
-      {
-        label: "ADR (₹)",
-        data: [4800, 5100, 5500, 5300, 5800, 6000],
-        borderColor: "#0BC5EA",
-        backgroundColor: "rgba(11, 197, 234, 0.2)",
-        tension: 0.5,
-        pointRadius: 5,
-        pointBackgroundColor: "#0BC5EA",
-      },
-    ],
-  };
+  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  datasets: [
+    {
+      label: "ADR (₹)",
+      data: [4800, 5100, 5500, 5300, 5800, 6000],
+      borderColor: "#0BC5EA",
+      backgroundColor: "rgba(11, 197, 234, 0.2)",
+      tension: 0.5,
+      pointRadius: 5,
+      pointBackgroundColor: "#0BC5EA",
+    },
+  ],
+};
 
 // 2.6 Occupancy Rate Doughnut Chart
 const totalRooms = 300;
@@ -120,18 +120,17 @@ const occupiedRooms = 225;
 const availableRooms = totalRooms - occupiedRooms;
 
 const occupancyDoughnutData = {
-    labels: [`Occupied (${occupiedRooms} Rooms)`, `Available (${availableRooms} Rooms)`],
-    datasets: [
-      {
-        label: "Room Count",
-        data: [occupiedRooms, availableRooms],
-        backgroundColor: ["#805AD5", "#E9D8FD"],
-        borderColor: "white",
-        borderWidth: 2,
-      },
-    ],
-  };
-
+  labels: [`Occupied (${occupiedRooms} Rooms)`, `Available (${availableRooms} Rooms)`],
+  datasets: [
+    {
+      label: "Room Count",
+      data: [occupiedRooms, availableRooms],
+      backgroundColor: ["#805AD5", "#E9D8FD"],
+      borderColor: "white",
+      borderWidth: 2,
+    },
+  ],
+};
 
 // --- 3. CHART OPTIONS ---
 
@@ -143,116 +142,115 @@ const chartOptions = {
     legend: { labels: { color: "#5B2C6F", font: { size: 12 } } },
     title: { display: false },
     tooltip: {
-        callbacks: {
-            // Tooltip for financial charts
-            label: function(context) {
-                let label = context.dataset.label || '';
-                if (label) {
-                    label += ': ';
-                }
-                if (context.parsed.y !== null) {
-                    label += formatCurrency(context.parsed.y);
-                }
-                return label;
-            }
-        }
-    }
+      callbacks: {
+        // Tooltip for financial charts
+        label: function (context) {
+          let label = context.dataset.label || "";
+          if (label) {
+            label += ": ";
+          }
+          if (context.parsed.y !== null) {
+            label += formatCurrency(context.parsed.y);
+          }
+          return label;
+        },
+      },
+    },
   },
   scales: {
     x: { ticks: { color: "#5B2C6F" }, grid: { display: false } },
-    y: { 
-        ticks: { 
-            color: "#5B2C6F",
-            // Format Y-axis labels for currency
-            callback: function(value) {
-                if (value >= 1000) {
-                    return '₹' + (value / 1000).toFixed(0) + 'K';
-                }
-                return '₹' + value;
-            }
-        } 
+    y: {
+      ticks: {
+        color: "#5B2C6F",
+        // Format Y-axis labels for currency
+        callback: function (value) {
+          if (value >= 1000) {
+            return "₹" + (value / 1000).toFixed(0) + "K";
+          }
+          return "₹" + value;
+        },
+      },
     },
   },
 };
 
 // Options specific for Pie/Doughnut Charts
 const pieChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: { position: 'bottom', labels: { color: "#5B2C6F", font: { size: 12 } } },
-        tooltip: { 
-            callbacks: { 
-                // Tooltip for Income Pie Chart (show currency amount)
-                label: (context) => {
-                    if (context.datasetIndex === 0 && context.dataset.label === "Income Distribution (₹)") {
-                        return `${context.label}: ${formatCurrency(context.parsed)}`;
-                    }
-                    // Tooltip for Occupancy Doughnut (show number of rooms)
-                    if (context.datasetIndex === 0 && context.dataset.label === "Room Count") {
-                        return `${context.label}: ${context.parsed} rooms`;
-                    }
-                    return `${context.label}: ${context.parsed}`;
-                } 
-            } 
-        }
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { position: "bottom", labels: { color: "#5B2C6F", font: { size: 12 } } },
+    tooltip: {
+      callbacks: {
+        // Tooltip for Income Pie Chart (show currency amount)
+        label: (context) => {
+          if (context.datasetIndex === 0 && context.dataset.label === "Income Distribution (₹)") {
+            return `${context.label}: ${formatCurrency(context.parsed)}`;
+          }
+          // Tooltip for Occupancy Doughnut (show number of rooms)
+          if (context.datasetIndex === 0 && context.dataset.label === "Room Count") {
+            return `${context.label}: ${context.parsed} rooms`;
+          }
+          return `${context.label}: ${context.parsed}`;
+        },
+      },
     },
+  },
 };
 
 // Update chart options for Rooms Booked Bar chart (Y-axis should not show currency)
 const roomsChartOptions = {
-    ...chartOptions, // Inherit base options
-    plugins: {
-        ...chartOptions.plugins,
-        tooltip: {
-            callbacks: {
-                label: function(context) {
-                    let label = context.dataset.label || '';
-                    if (label) {
-                        label += ': ';
-                    }
-                    if (context.parsed.y !== null) {
-                        label += context.parsed.y + ' Rooms'; // Show 'Rooms' instead of currency
-                    }
-                    return label;
-                }
-            }
-        }
-    },
-    scales: {
-        ...chartOptions.scales,
-        y: { 
-            ticks: { 
-                color: "#5B2C6F",
-                callback: function(value) { return value; } // Do not format as currency
-            } 
+  ...chartOptions, // Inherit base options
+  plugins: {
+    ...chartOptions.plugins,
+    tooltip: {
+      callbacks: {
+        label: function (context) {
+          let label = context.dataset.label || "";
+          if (label) {
+            label += ": ";
+          }
+          if (context.parsed.y !== null) {
+            label += context.parsed.y + " Rooms"; // Show 'Rooms' instead of currency
+          }
+          return label;
         },
-    }
+      },
+    },
+  },
+  scales: {
+    ...chartOptions.scales,
+    y: {
+      ticks: {
+        color: "#5B2C6F",
+        callback: function (value) {
+          return value;
+        }, // Do not format as currency
+      },
+    },
+  },
 };
 
 // --- Helper component for uniform chart styling (MOVED UP FOR READABILITY) ---
 const ChartBox = ({ title, children }) => {
-    const bg = useColorModeValue("white", "gray.700");
-    const shadow = useColorModeValue("md", "dark-lg");
-    return (
-        <Box
-            bg={bg}
-            p={6}
-            borderRadius="lg" // Slightly smaller border radius
-            shadow={shadow} // Simpler, cleaner shadow
-            h="350px"
-            _hover={{ transform: "translateY(-2px)", shadow: "xl", transition: "all 0.2s" }} // Subtler hover effect
-        >
-            <Text fontWeight="bold" fontSize="lg" mb={4} color="gray.700">
-                {title}
-            </Text>
-            <Box h="280px">
-                {children}
-            </Box>
-        </Box>
-    );
+  const bg = useColorModeValue("white", "gray.700");
+  const shadow = useColorModeValue("md", "dark-lg");
+  return (
+    <Box
+      bg={bg}
+      p={6}
+      borderRadius="lg" // Slightly smaller border radius
+      shadow={shadow} // Simpler, cleaner shadow
+      h="350px"
+      _hover={{ transform: "translateY(-2px)", shadow: "xl", transition: "all 0.2s" }} // Subtler hover effect
+    >
+      <Text fontWeight="bold" fontSize="lg" mb={4} color="gray.700">
+        {title}
+      </Text>
+      <Box h="280px">{children}</Box>
+    </Box>
+  );
 };
-
 
 // --- 4. DASHBOARD COMPONENT ---
 export default function Dashboard() {
@@ -261,7 +259,6 @@ export default function Dashboard() {
 
   return (
     <Box p={{ base: 4, md: 8 }} bg={bg} minH="100vh">
-
       {/* Stats Cards (4 Tiles) */}
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
         {statsData.map((stat, idx) => (
@@ -283,7 +280,10 @@ export default function Dashboard() {
             </StatNumber>
             <StatHelpText fontSize="sm" mt={2}>
               <StatArrow type={stat.type} />
-              <Text as="span" fontWeight="medium" color={stat.type === 'increase' ? 'green.500' : 'red.500'}>{stat.change}%</Text> vs last period
+              <Text as="span" fontWeight="medium" color={stat.type === "increase" ? "green.500" : "red.500"}>
+                {stat.change}%
+              </Text>{" "}
+              vs last period
             </StatHelpText>
           </Stat>
         ))}

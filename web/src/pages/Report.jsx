@@ -50,7 +50,7 @@ const ReportPage = () => {
       if (fromDate) params.append("fromDate", formatDate(fromDate));
       if (toDate) params.append("toDate", formatDate(toDate));
 
-      const res = await fetch(`http://localhost:5000/api/report?${params.toString()}`);
+      const res = await fetch(`http://localhost:8000/api/report?${params.toString()}`);
       const data = await res.json();
 
       // Convert string dates to Date objects

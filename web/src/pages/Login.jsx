@@ -40,41 +40,49 @@ export default function Login({ onLoginSuccess }) {
     setErrors({ ...errors, [e.target.name]: "" }); // Clear error on change
   };
 
-const handleLogin = async () => {
-  const { username, password, role } = loginData;
+  const handleLogin = async () => {
+    const { username, password, role } = loginData;
 
-  let hasError = false;
-  const newErrors = { username: "", password: "", role: "" };
-  if (!username) { newErrors.username = "Username required"; hasError = true; }
-  if (!password) { newErrors.password = "Password required"; hasError = true; }
-  if (!role) { newErrors.role = "Role required"; hasError = true; }
-  setErrors(newErrors);
-  if (hasError) return;
-
-  try {
-    const res = await fetch("http://localhost:5000/api/signin", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, role }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      showStatusToast("error", data.message || "Login failed");
-      return;
+    let hasError = false;
+    const newErrors = { username: "", password: "", role: "" };
+    if (!username) {
+      newErrors.username = "Username required";
+      hasError = true;
     }
+    if (!password) {
+      newErrors.password = "Password required";
+      hasError = true;
+    }
+    if (!role) {
+      newErrors.role = "Role required";
+      hasError = true;
+    }
+    setErrors(newErrors);
+    if (hasError) return;
 
-    showStatusToast("success", "Logged in successfully!");
-    onLoginSuccess();
+    try {
+      const res = await fetch("http://localhost:8000/api/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, role }),
+      });
 
-    setTimeout(() => navigate("/"), 800);
-  } catch (err) {
-    showStatusToast("error", "Server not reachable");
-    console.error(err);
-  }
-};
+      const data = await res.json();
 
+      if (!res.ok) {
+        showStatusToast("error", data.message || "Login failed");
+        return;
+      }
+
+      showStatusToast("success", "Logged in successfully!");
+      onLoginSuccess();
+
+      setTimeout(() => navigate("/"), 800);
+    } catch (err) {
+      showStatusToast("error", "Server not reachable");
+      console.error(err);
+    }
+  };
 
   const cardBg = useColorModeValue("rgba(255, 255, 255, 0.12)", "gray.800");
 

@@ -1,8 +1,145 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
-const mysql = require("mysql2");
 require("dotenv").config();
+const fs = require("fs");
+const mysql = require("mysql2/promise");
+const util = require("util");
+const { google } = require("googleapis");
+const cron = require("node-cron");
+
+// ---- GOOGLE SHEETS SETUP ----
+const credentials = JSON.parse(fs.readFileSync("./credentials.json"));
+const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+
+const auth = new google.auth.JWT({
+  email: credentials.client_email,
+  key: credentials.private_key.replace(/\\n/g, "\n"),
+  scopes: SCOPES,
+});
+
+(async () => {
+  try {
+    await auth.authorize();
+    console.log("✅ Google Service Account authenticated successfully!");
+  } catch (err) {
+    console.error("❌ Google Auth failed:", err);
+  }
+})();
+
+const sheets = google.sheets({ version: "v4", auth });
+
+// ---- CONFIG ----
+const SPREADSHEET_ID = "1UJ1kk2du9_HtvdhFAbmoZpV8doQyQhO8IFWEWsxNWcs";
+const SHEET_NAME = "Bookings";
+const DB_CONFIG = {
+  host: "127.0.0.1",
+  user: "root",
+  password: "password",
+  database: "hotel_app",
+};
+
+// ---- UTILITIES ----
+function formatToMySQLDateTime(dateStr) {
+  if (!dateStr) return null;
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date)) {
+      const [datePart, timePart, meridian] = dateStr.split(" ");
+      if (!datePart || !timePart) return null;
+      let [year, month, day] = datePart.split("-");
+      let [hour, minute] = timePart.split(":");
+      hour = parseInt(hour);
+      minute = parseInt(minute);
+      if (meridian?.toUpperCase() === "PM" && hour < 12) hour += 12;
+      if (meridian?.toUpperCase() === "AM" && hour === 12) hour = 0;
+      return `${year}-${month}-${day} ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
+    } else {
+      return date.toISOString().slice(0, 19).replace("T", " ");
+    }
+  } catch {
+    return null;
+  }
+}
+
+// ---- SYNC FUNCTION ----
+async function syncNewRows() {
+  try {
+    const res = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!B2:J`, // skip header row
+    });
+
+    const rows = res.data.values || [];
+    if (rows.length === 0) {
+      console.log("⚠️ No data found in Google Sheet.");
+      return;
+    }
+
+    console.log(`📋 Found ${rows.length} rows in sheet.`);
+
+    const connection = await mysql.createConnection(DB_CONFIG);
+    const query = util.promisify(connection.query).bind(connection);
+
+    for (const [index, row] of rows.entries()) {
+      const fullRow = [...row, "", "", "", "", "", "", "", "", ""].slice(0, 9);
+      const [name, email, phone, room_type, check_in, check_out, guests_adult, guests_kids, submitted_at] = fullRow;
+
+      if (!name || !email || !phone) {
+        console.log(`⚠️ Skipping incomplete row ${index + 2}`);
+        continue;
+      }
+
+      const formattedCheckIn = formatToMySQLDateTime(check_in);
+      const formattedCheckOut = formatToMySQLDateTime(check_out);
+
+      const existing = await query(
+        `SELECT id FROM online_booking 
+         WHERE email = ? AND phone = ? AND check_in = ? LIMIT 1`,
+        [email.trim(), phone.trim(), formattedCheckIn]
+      );
+
+      if (existing.length > 0) {
+        console.log(`⏩ Row ${index + 2} skipped — already exists`);
+        continue;
+      }
+
+      console.log(`🟢 Inserting row ${index + 2}: ${name}`);
+
+      await connection.execute(
+        `INSERT INTO online_booking
+        (cusname, email, phone, room_type, check_in, check_out, adults, children, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          name.trim(),
+          email.trim(),
+          phone.trim(),
+          room_type || "Not specified",
+          formattedCheckIn,
+          formattedCheckOut,
+          guests_adult || 0,
+          guests_kids || 0,
+          submitted_at || new Date(),
+        ]
+      );
+    }
+
+    await connection.end();
+    console.log("✅ All rows inserted successfully into MySQL!");
+  } catch (error) {
+    console.error("❌ Error syncing:", error.message);
+  }
+}
+
+// ---- AUTO SYNC EVERY MINUTE ----
+cron.schedule("*/1 * * * *", () => {
+  console.log("🔁 Checking for new rows in Google Sheet...");
+  syncNewRows();
+});
+
+// ---- OPTIONAL: Run Once on Server Start ----
+syncNewRows();
+
 
 const app = express();
 
@@ -611,5 +748,5 @@ app.get("/", (req, res) => res.send("🏨 Hotel App Backend Running!"));
 // ====================
 // Start server
 // ====================
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

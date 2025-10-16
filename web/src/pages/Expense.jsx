@@ -50,7 +50,7 @@ export default function ExpensePage() {
   // Fetch expenses
   const fetchExpenses = async (page = 1) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/getexpense?page=${page}&limit=${ITEMS_PER_PAGE}`);
+      const res = await fetch(`http://localhost:8000/api/getexpense?page=${page}&limit=${ITEMS_PER_PAGE}`);
       const data = await res.json();
       if (!res.ok) {
         showStatusToast("error", data.message || "Failed to fetch expenses");
@@ -93,7 +93,7 @@ export default function ExpensePage() {
     if (hasError) return; // stop if any errors
 
     try {
-      const res = await fetch("http://localhost:5000/api/addexpense", {
+      const res = await fetch("http://localhost:8000/api/addexpense", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ invoice, description, amount }),
@@ -126,7 +126,7 @@ export default function ExpensePage() {
   const handleConfirmDelete = async () => {
     if (!deleteId) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/deleteexpense/${deleteId}`, {
+      const res = await fetch(`http://localhost:8000/api/deleteexpense/${deleteId}`, {
         method: "DELETE",
       });
       const data = await res.json();

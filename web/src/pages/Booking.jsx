@@ -122,7 +122,7 @@ export default function BookingPage() {
         const fromStr = fromDate.toLocaleDateString("en-CA");
         const toStr = toDate.toLocaleDateString("en-CA");
 
-        const res = await fetch(`http://localhost:5000/api/check-availability?from=${fromStr}&to=${toStr}`);
+        const res = await fetch(`http://localhost:8000/api/check-availability?from=${fromStr}&to=${toStr}`);
         const data = await res.json();
 
         const availObj = {};
@@ -148,7 +148,7 @@ export default function BookingPage() {
       const fromStr = from.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
       const toStr = to.toLocaleDateString("en-CA");
 
-      const res = await fetch(`http://localhost:5000/api/check-availability?from=${fromStr}&to=${toStr}`);
+      const res = await fetch(`http://localhost:8000/api/check-availability?from=${fromStr}&to=${toStr}`);
       const data = await res.json();
       const availObj = {};
       data.forEach((room) => {
@@ -238,7 +238,7 @@ export default function BookingPage() {
     };
 
     try {
-      const response = await fetch("http://localhost:5000/api/addbooking", {
+      const response = await fetch("http://localhost:8000/api/addbooking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

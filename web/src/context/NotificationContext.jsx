@@ -9,7 +9,7 @@ export const NotificationProvider = ({ children }) => {
   // Fetch baseline latest ID on first login or refresh
   const fetchLatestId = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/online-bookings/latest-id");
+      const res = await fetch("http://localhost:8000/api/online-bookings/latest-id");
       const data = await res.json();
 
       // Save baseline so old records aren't treated as new
@@ -24,7 +24,7 @@ export const NotificationProvider = ({ children }) => {
   const fetchNewBookings = async () => {
     try {
       const lastSeen = localStorage.getItem("lastMaxId") || 0;
-      const res = await fetch(`http://localhost:5000/api/online-bookings/new-count?lastSeen=${lastSeen}`);
+      const res = await fetch(`http://localhost:8000/api/online-bookings/new-count?lastSeen=${lastSeen}`);
       const data = await res.json();
 
       setNewBookings(data.newCount || 0);
@@ -48,7 +48,7 @@ export const NotificationProvider = ({ children }) => {
   // Reset when user clicks bell
   const resetNewBookings = async () => {
     try {
-      await fetch("http://localhost:5000/api/online-bookings/mark-seen", {
+      await fetch("http://localhost:8000/api/online-bookings/mark-seen", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ maxId: maxIdRef.current }),
