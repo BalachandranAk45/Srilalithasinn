@@ -3,7 +3,7 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 require("dotenv").config();
 const fs = require("fs");
-const mysql = require("mysql2/promise");
+const mysql = require("mysql2");
 const util = require("util");
 const { google } = require("googleapis");
 const cron = require("node-cron");
@@ -35,7 +35,7 @@ const SHEET_NAME = "Bookings";
 const DB_CONFIG = {
   host: "127.0.0.1",
   user: "root",
-  password: "password",
+  password: "Password",
   database: "hotel_app",
 };
 
