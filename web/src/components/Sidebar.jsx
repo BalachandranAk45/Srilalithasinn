@@ -31,7 +31,7 @@ export default function Sidebar() {
     <Box
       bg={bg}
       w={{ base: isCollapsed ? "60px" : "260px", md: isCollapsed ? "60px" : "260px" }}
-      minH="100vh"
+      minH="150vh"
       position="sticky"
       top="0"
       left="0"

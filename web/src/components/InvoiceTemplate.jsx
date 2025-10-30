@@ -91,6 +91,50 @@ const styles = {
     padding: "12px",
     border: `1px solid ${THEME.borderColor}`,
   },
+  gstBreakdown: {
+    width: "50%",
+    marginLeft: "auto",
+    marginBottom: "20px",
+    padding: "20px",
+    backgroundColor: "#F9F8FC",
+    borderRadius: "10px",
+    border: "1px solid #E8E6F2",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+  },
+  breakdownRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "8px 0",
+    borderBottom: "1px solid #EDEBF7",
+  },
+  breakdownLabel: {
+    fontWeight: "500",
+    color: "#666",
+    fontSize: "15px",
+  },
+  breakdownValue: {
+    fontWeight: "500",
+    color: "#333",
+    fontSize: "15px",
+  },
+  totalRow: {
+    borderBottom: "none",
+    borderTop: "2px solid #DDD6F3",
+    marginTop: "8px",
+    paddingTop: "12px",
+    paddingBottom: "0",
+  },
+  totalLabel: {
+    fontWeight: "600",
+    color: "#A084CA",
+    fontSize: "16px",
+  },
+  totalValue: {
+    fontWeight: "700",
+    color: "#A084CA",
+    fontSize: "16px",
+  },
   totalSection: {
     textAlign: "right",
     padding: "20px",
@@ -98,9 +142,13 @@ const styles = {
     color: "#fff",
     borderRadius: "10px",
     fontSize: "18px",
-    fontWeight: 600,
+    fontWeight: "600",
     fontFamily: "'Poppins', sans-serif",
     boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
+  },
+  totalText: {
+    fontSize: "18px",
+    fontWeight: "600",
   },
   footer: {
     textAlign: "center",
@@ -121,6 +169,11 @@ const InvoiceTemplate = ({ data }) => {
     backgroundColor: idx % 2 === 0 ? THEME.tableOdd : THEME.tableEven,
     transition: "background-color 0.3s",
   });
+
+  // Check if GST is applied
+  const hasGST = data.has_gst || data.gst_amount > 0;
+  const gstPercent = data.bookings ? 
+    Object.values(data.bookings).flat()[0]?.gst_percent : 0;
 
   return (
     <div id="invoice" style={styles.container}>
@@ -187,8 +240,30 @@ const InvoiceTemplate = ({ data }) => {
         </tbody>
       </table>
 
-      {/* Total Amount */}
-      <div style={styles.totalSection}>Total: ₹{data.total_amount}</div>
+      {/* GST Breakdown (only if GST is applied) */}
+      {hasGST && (
+        <div style={styles.gstBreakdown}>
+          <div style={styles.breakdownRow}>
+            <span style={styles.breakdownLabel}>Room Charges:</span>
+            <span style={styles.breakdownValue}>₹{data.room_amount || data.total_amount - data.gst_amount}</span>
+          </div>
+          <div style={styles.breakdownRow}>
+            <span style={styles.breakdownLabel}>GST ({gstPercent}%):</span>
+            <span style={styles.breakdownValue}>₹{data.gst_amount}</span>
+          </div>
+          <div style={{...styles.breakdownRow, ...styles.totalRow}}>
+            <span style={styles.totalLabel}>Total Amount:</span>
+            <span style={styles.totalValue}>₹{data.total_amount}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Total Amount (only when no GST) */}
+      {!hasGST && (
+        <div style={styles.totalSection}>
+          <div style={styles.totalText}>Total Amount: ₹{data.total_amount}</div>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={styles.footer}>

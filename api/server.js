@@ -140,7 +140,6 @@ cron.schedule("*/1 * * * *", () => {
 // ---- OPTIONAL: Run Once on Server Start ----
 syncNewRows();
 
-
 const app = express();
 
 // ====================
@@ -371,7 +370,187 @@ app.get("/api/online-bookings", (req, res) => {
     });
   });
 });
+const queryPromise = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    // Assuming 'db' is available in the scope where this code is executed
+    db.query(sql, params, (err, results) => {
+      if (err) return reject(err);
+      resolve(results);
+    });
+  });
+};
 
+app.get("/api/get-tile-details", async (req, res) => {
+  try {
+    // ----------------------------------------------------
+    // SQL Queries Definition (using MySQL functions)
+    // ----------------------------------------------------
+
+    // 1. Today's Received Amount (Bookings made/checked out today)
+    const todayReceivedSQL = `
+            SELECT  
+                COALESCE(SUM(total_amount), 0.00) AS amount
+            FROM 
+                booking_details
+            WHERE 
+                DATE(created_at) = CURDATE() 
+                AND status = 'CheckedOut';
+        `;
+
+    // 2. Monthly Received Amount (Bookings for the current month)
+    const monthlyReceivedSQL = `
+            SELECT 
+                COALESCE(SUM(total_amount), 0.00) AS amount
+            FROM 
+                booking_details
+            WHERE 
+                MONTH(created_at) = MONTH(CURDATE())
+                AND YEAR(created_at) = YEAR(CURDATE())
+                And Status = 'CheckedOut';        `;
+
+    // 3. Yearly Received Amount (Bookings for the current year)
+    const yearlyReceivedSQL = `
+            SELECT 
+                COALESCE(SUM(total_amount), 0.00) AS amount
+            FROM 
+                booking_details
+            WHERE 
+                YEAR(created_at) = YEAR(CURDATE())
+            And Status = 'CheckedOut';  `;
+
+    // 4. Monthly Expenses (Expenses for the current month)
+    const monthlyExpensesSQL = `
+            SELECT 
+                COALESCE(SUM(amount), 0.00) AS amount
+            FROM 
+                expenses
+            WHERE 
+                MONTH(created_at) = MONTH(CURDATE())
+                AND YEAR(created_at) = YEAR(CURDATE());
+        `;
+
+    // ----------------------------------------------------
+    // Execute all queries concurrently using Promise.all
+    // ----------------------------------------------------
+    const [todayResult, monthReceivedResult, yearReceivedResult, monthExpensesResult] = await Promise.all([
+      queryPromise(todayReceivedSQL),
+      queryPromise(monthlyReceivedSQL),
+      queryPromise(yearlyReceivedSQL),
+      queryPromise(monthlyExpensesSQL),
+    ]);
+
+    // ----------------------------------------------------
+    // Format and return the aggregated results
+    // ----------------------------------------------------
+    const tileDetails = {
+      Today_Received_Amount: Number(todayResult[0].amount).toFixed(2),
+      Monthly_Received_Amount: Number(monthReceivedResult[0].amount).toFixed(2),
+      Yearly_Received_Amount: Number(yearReceivedResult[0].amount).toFixed(2),
+      Monthly_Expenses: Number(monthExpensesResult[0].amount).toFixed(2),
+    };
+
+    res.json({
+      status: "success",
+      data: tileDetails,
+    });
+  } catch (error) {
+    console.error("Error fetching tile details:", error);
+    res.status(500).json({
+      message: "Failed to fetch key financial metrics",
+      error: error.message,
+    });
+  }
+});
+// Add this new endpoint to your Node.js/Express server file
+
+app.get("/api/get-monthly-trends", async (req, res) => {
+  try {
+    // Helper function to initialize an array for the 12 months with a default value of 0.
+    const initializeMonthlyData = () => Array(12).fill(0);
+
+    // ----------------------------------------------------
+    // 1. Monthly Revenue Query
+    // Calculates total revenue (total_amount) for each month of the current year.
+    // ----------------------------------------------------
+    const monthlyRevenueSQL = `
+        SELECT 
+            MONTH(created_at) AS month_index, 
+            COALESCE(SUM(total_amount), 0.00) AS total_revenue
+        FROM 
+            booking_details
+        WHERE 
+            YEAR(created_at) = YEAR(CURDATE())
+            AND status = 'CheckedOut'
+        GROUP BY 
+            month_index
+        ORDER BY 
+            month_index;
+    `;
+
+    // ----------------------------------------------------
+    // 2. Monthly Rooms Booked Query
+    // Counts the number of unique bookings (or rows) for each month of the current year.
+    // Assumes one row = one booking for room count. If a single booking has multiple rooms,
+    // you would need a different table structure or aggregation (e.g., SUM(num_rooms)).
+    // For simplicity here, we'll count booking rows.
+    // ----------------------------------------------------
+    const monthlyRoomsSQL = `
+        SELECT 
+            MONTH(created_at) AS month_index, 
+            COUNT(booking_id) AS total_rooms_booked
+        FROM 
+            booking_details
+        WHERE 
+            YEAR(created_at) = YEAR(CURDATE())
+            AND status IN ('CheckedOut')
+        GROUP BY 
+            month_index
+        ORDER BY 
+            month_index;
+    `;
+
+    // ----------------------------------------------------
+    // Execute both queries concurrently
+    // ----------------------------------------------------
+    const [revenueResults, roomsResults] = await Promise.all([
+      queryPromise(monthlyRevenueSQL),
+      queryPromise(monthlyRoomsSQL),
+    ]);
+
+    // ----------------------------------------------------
+    // Format the results into 12-element arrays (0 for empty months)
+    // ----------------------------------------------------
+
+    const monthlyRevenueData = initializeMonthlyData();
+    revenueResults.forEach((row) => {
+      // month_index is 1-based (Jan=1, Feb=2, ...)
+      monthlyRevenueData[row.month_index - 1] = Number(row.total_revenue);
+    });
+
+    const monthlyRoomsData = initializeMonthlyData();
+    roomsResults.forEach((row) => {
+      // month_index is 1-based
+      monthlyRoomsData[row.month_index - 1] = Number(row.total_rooms_booked);
+    });
+
+    // ----------------------------------------------------
+    // Return the aggregated, 12-month trend data
+    // ----------------------------------------------------
+    res.json({
+      status: "success",
+      data: {
+        monthlyRevenue: monthlyRevenueData, // [Jan_Rev, Feb_Rev, ..., Dec_Rev]
+        monthlyRooms: monthlyRoomsData, // [Jan_Rooms, Feb_Rooms, ..., Dec_Rooms]
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching monthly trend details:", error);
+    res.status(500).json({
+      message: "Failed to fetch monthly trend data",
+      error: error.message,
+    });
+  }
+});
 // --------------------
 // Get All Bookings
 // --------------------
@@ -494,7 +673,39 @@ app.get("/api/online-enquiries", (req, res) => {
     });
   });
 });
+// Simple API to update GST percent only
+app.post("/api/update-gst", (req, res) => {
+  const { customer_id, booking_ids, gst_percent } = req.body;
 
+  if (!customer_id || !booking_ids || !Array.isArray(booking_ids) || booking_ids.length === 0) {
+    return res.status(400).json({
+      message: "Customer ID and booking IDs are required",
+    });
+  }
+
+  // Update only gst_percent for all booking IDs
+  const sql = `
+    UPDATE booking_details 
+    SET gst_percent = ?
+    WHERE booking_id IN (?) AND customer_id = ?
+  `;
+
+  db.query(sql, [gst_percent, booking_ids, customer_id], (err, result) => {
+    if (err) {
+      console.error("Error updating GST:", err);
+      return res.status(500).json({
+        message: "Error updating GST details",
+        error: err.sqlMessage,
+      });
+    }
+
+    res.json({
+      message: "GST percentage updated successfully",
+      updatedBookings: result.affectedRows,
+      gst_percent: gst_percent,
+    });
+  });
+});
 // ====================
 // GENERATE BILL BY CUSTOMER ID
 // ====================
@@ -518,7 +729,10 @@ app.get("/api/generatebill/customer/:customer_id", (req, res) => {
       b.from_date,
       b.to_date,
       b.room_amount,
-      b.status
+      b.status,
+      b.gst_percent,
+      b.gst_amount,
+      b.total_amount
     FROM booking_details b
     JOIN customers c ON b.customer_id = c.customer_id
     WHERE c.customer_id = ?
@@ -532,20 +746,32 @@ app.get("/api/generatebill/customer/:customer_id", (req, res) => {
 
     // Calculate total amount
     const totalAmount = results.reduce((sum, room) => sum + parseFloat(room.room_amount), 0);
+    const totalGstAmount = results.reduce((sum, room) => sum + (parseFloat(room.gst_amount) || 0), 0);
+    const finalTotalAmount = results.reduce(
+      (sum, room) => sum + (parseFloat(room.total_amount) || parseFloat(room.room_amount)),
+      0
+    );
 
-    // Group rooms by booking_no
+    // Group rooms by booking_no and include ALL fields
     const bookings = {};
     results.forEach((r) => {
       if (!bookings[r.booking_no]) bookings[r.booking_no] = [];
       bookings[r.booking_no].push({
+        booking_id: r.booking_id, // Include booking_id
         room_no: r.room_no,
         room_type: r.room_type,
         from_date: r.from_date,
         to_date: r.to_date,
         status: r.status,
         room_amount: r.room_amount,
+        gst_percent: r.gst_percent, // Include GST fields
+        gst_amount: r.gst_amount,
+        total_amount: r.total_amount,
       });
     });
+
+    // Extract all booking IDs for easy access
+    const bookingIds = results.map((r) => r.booking_id);
 
     res.json({
       customer: {
@@ -554,9 +780,14 @@ app.get("/api/generatebill/customer/:customer_id", (req, res) => {
         mobile: results[0].mobile,
         aadhar: results[0].aadhar,
         address: results[0].address,
+        booking_no: results[0].booking_no,
       },
       bookings: bookings,
-      total_amount: totalAmount,
+      booking_ids: bookingIds, // Include array of all booking IDs
+      total_amount: finalTotalAmount,
+      room_amount: totalAmount,
+      gst_amount: totalGstAmount,
+      has_gst: totalGstAmount > 0,
     });
   });
 });

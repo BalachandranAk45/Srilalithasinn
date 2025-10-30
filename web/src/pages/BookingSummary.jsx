@@ -22,12 +22,26 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
+  ModalFooter,
   useDisclosure,
   IconButton,
-  Stack,
+  FormControl,
+  FormLabel,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
+  useToast,
 } from "@chakra-ui/react";
 import { LuHotel, LuBuilding2 } from "react-icons/lu";
-import { MdOutlineMeetingRoom, MdDownload, MdPreview } from "react-icons/md";
+import { MdOutlineMeetingRoom } from "react-icons/md";
 import { AiOutlineEye, AiOutlineFilePdf } from "react-icons/ai";
 
 import jsPDF from "jspdf";
@@ -47,10 +61,21 @@ const BookingSummary = () => {
   const [previewData, setPreviewData] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const cardBg = useColorModeValue("white", "gray.800");
+  const [gstPercent, setGstPercent] = useState(18);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [invoiceAction, setInvoiceAction] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const limit = 10; // 10 records per page
+  // Modals
+  const { isOpen: isPreviewOpen, onOpen: onPreviewOpen, onClose: onPreviewClose } = useDisclosure();
+  const { isOpen: isGstOpen, onOpen: onGstOpen, onClose: onGstClose } = useDisclosure();
+  const { isOpen: isConfirmOpen, onOpen: onConfirmOpen, onClose: onConfirmClose } = useDisclosure();
+
+  const cardBg = useColorModeValue("white", "gray.800");
+  const cancelRef = React.useRef();
+  const toast = useToast();
+
+  const limit = 10;
 
   const fetchBookings = async (pageNumber = 1) => {
     try {
@@ -74,7 +99,6 @@ const BookingSummary = () => {
         body: JSON.stringify({ bookingIds, status: newStatus }),
       });
 
-      // Update local state
       setBookings((prev) =>
         prev.map((b) => {
           const ids = Array.isArray(b.booking_ids) ? b.booking_ids : [b.booking_id];
@@ -86,17 +110,171 @@ const BookingSummary = () => {
     }
   };
 
-  const downloadInvoice = async (customerId) => {
+  const updateGSTInDatabase = async (customerId, gstPercentage, bookingIds) => {
+    try {
+      const response = await fetch("http://localhost:8000/api/update-gst", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customer_id: customerId,
+          booking_ids: bookingIds,
+          gst_percent: gstPercentage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update GST in database");
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Error updating GST:", error);
+      throw error;
+    }
+  };
+
+  const handleInvoiceAction = (customerId, action) => {
+    setSelectedCustomer(customerId);
+    setInvoiceAction(action);
+    
+    if (action === "preview") {
+      // For preview, directly show the invoice without GST confirmation
+      previewInvoice(customerId);
+    } else {
+      // For download, show GST confirmation
+      onConfirmOpen();
+    }
+  };
+
+  const previewInvoice = async (customerId) => {
     try {
       const res = await fetch(`http://localhost:8000/api/generatebill/customer/${customerId}`);
       const data = await res.json();
+      setPreviewData(data);
+      onPreviewOpen();
+    } catch (err) {
+      console.error("Preview invoice error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to preview invoice",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
 
+  const proceedWithGst = () => {
+    onConfirmClose();
+    onGstOpen();
+  };
+
+  const proceedWithoutGst = async () => {
+    onConfirmClose();
+    try {
+      const res = await fetch(`http://localhost:8000/api/generatebill/customer/${selectedCustomer}`);
+      const data = await res.json();
+      generatePDF(data);
+    } catch (err) {
+      console.error("Invoice generation error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to generate invoice",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const generateInvoiceWithGst = async () => {
+    setIsUpdating(true);
+    try {
+      // First get the base data to extract booking IDs
+      const res = await fetch(`http://localhost:8000/api/generatebill/customer/${selectedCustomer}`);
+      const data = await res.json();
+
+      console.log("API Response:", data); // Debug log to see the structure
+
+      // Extract booking IDs from the data - handle different possible structures
+      const bookingIds = [];
+
+      // Method 1: Check if bookings is an object with booking arrays
+      if (data.bookings && typeof data.bookings === "object") {
+        Object.values(data.bookings).forEach((bookingArray) => {
+          if (Array.isArray(bookingArray)) {
+            bookingArray.forEach((booking) => {
+              if (booking.booking_id) {
+                bookingIds.push(booking.booking_id);
+              }
+            });
+          }
+        });
+      }
+
+      // Method 2: If no booking IDs found, try to get from current bookings state
+      if (bookingIds.length === 0) {
+        const currentBooking = bookings.find((b) => b.customer_id === selectedCustomer);
+        if (currentBooking) {
+          // Try different possible property names
+          if (currentBooking.booking_ids && Array.isArray(currentBooking.booking_ids)) {
+            bookingIds.push(...currentBooking.booking_ids);
+          } else if (currentBooking.booking_id) {
+            bookingIds.push(currentBooking.booking_id);
+          }
+        }
+      }
+
+      // If still no booking IDs found, throw error with details
+      if (bookingIds.length === 0) {
+        console.error("No booking IDs found. Data structure:", data);
+        throw new Error("No booking IDs found for this customer. Please check the booking data.");
+      }
+
+      console.log("Booking IDs to update:", bookingIds); // Debug log
+
+      // Update GST in database
+      await updateGSTInDatabase(selectedCustomer, gstPercent, bookingIds);
+
+      // Fetch updated data with GST calculations
+      const updatedRes = await fetch(`http://localhost:8000/api/generatebill/customer/${selectedCustomer}`);
+      const updatedData = await updatedRes.json();
+
+      generatePDF(updatedData);
+
+      toast({
+        title: "GST Updated",
+        description: `GST ${gstPercent}% applied successfully to ${bookingIds.length} booking(s)`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      console.error("Invoice generation error:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update GST and generate invoice",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdating(false);
+      onGstClose();
+    }
+  };
+
+  const generatePDF = async (invoiceData) => {
+    try {
       const div = document.createElement("div");
       div.style.position = "absolute";
       div.style.left = "-9999px";
       document.body.appendChild(div);
 
-      ReactDOM.render(<InvoiceTemplate data={data} />, div);
+      ReactDOM.render(<InvoiceTemplate data={invoiceData} />, div);
 
       const canvas = await html2canvas(div, { scale: 2 });
       const imgData = canvas.toDataURL("image/png");
@@ -106,23 +284,27 @@ const BookingSummary = () => {
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
       pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Invoice_${data.customer.name}_${Date.now()}.pdf`);
+      pdf.save(`Invoice_${invoiceData.customer.name}_${Date.now()}.pdf`);
 
       ReactDOM.unmountComponentAtNode(div);
       document.body.removeChild(div);
-    } catch (err) {
-      console.error("Download invoice error:", err);
-    }
-  };
 
-  const previewInvoice = async (customerId) => {
-    try {
-      const res = await fetch(`http://localhost:8000/api/generatebill/customer/${customerId}`);
-      const data = await res.json();
-      setPreviewData(data);
-      onOpen();
+      toast({
+        title: "Invoice Downloaded",
+        description: "Invoice has been downloaded successfully",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
     } catch (err) {
-      console.error("Preview invoice error:", err);
+      console.error("PDF generation error:", err);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
@@ -133,7 +315,6 @@ const BookingSummary = () => {
   const renderPagination = () => {
     const pages = [];
 
-    // Previous button
     pages.push(
       <Button
         key="prev"
@@ -146,7 +327,6 @@ const BookingSummary = () => {
       </Button>
     );
 
-    // Numbered page buttons
     for (let i = 1; i <= totalPages; i++) {
       pages.push(
         <Button key={i} size="sm" colorScheme={i === page ? "purple" : "gray"} onClick={() => setPage(i)}>
@@ -155,7 +335,6 @@ const BookingSummary = () => {
       );
     }
 
-    // Next button
     pages.push(
       <Button
         key="next"
@@ -175,7 +354,6 @@ const BookingSummary = () => {
     <Box p={{ base: 4, md: 8 }}>
       {/* Heading */}
       <VStack align="start" spacing={2} mb={6} mt={8}>
-        "
         <Heading fontSize={{ base: "xl", md: "2xl" }} fontWeight="600" color="purple.700">
           Our Bookings
         </Heading>
@@ -218,7 +396,6 @@ const BookingSummary = () => {
                   bg={idx % 2 === 0 ? "white" : "purple.50"}
                   _hover={{ bg: "purple.100", transform: "translateY(-1px)", boxShadow: "md", transition: "all 0.2s" }}
                 >
-                  {/* Customer with Avatar */}
                   <Td>
                     <HStack spacing={3}>
                       <Avatar name={b.name} size="sm" />
@@ -233,7 +410,6 @@ const BookingSummary = () => {
                     </HStack>
                   </Td>
 
-                  {/* Room / Hall / Apartment */}
                   <Td>
                     <HStack spacing={2}>
                       <Box as={icon} color="teal.500" boxSize={5} />
@@ -241,7 +417,6 @@ const BookingSummary = () => {
                     </HStack>
                   </Td>
 
-                  {/* Check-In & Check-Out */}
                   <Td>
                     <Badge colorScheme="teal" px={2} py={1} borderRadius="md">
                       {b.checkIn}
@@ -253,7 +428,6 @@ const BookingSummary = () => {
                     </Badge>
                   </Td>
 
-                  {/* Status */}
                   <Td>
                     <Select
                       size="sm"
@@ -268,7 +442,6 @@ const BookingSummary = () => {
                     </Select>
                   </Td>
 
-                  {/* Actions */}
                   <Td>
                     <HStack spacing={2}>
                       <IconButton
@@ -276,7 +449,7 @@ const BookingSummary = () => {
                         icon={<AiOutlineEye size={22} />}
                         size="sm"
                         colorScheme="green"
-                        onClick={() => previewInvoice(b.customer_id)}
+                        onClick={() => handleInvoiceAction(b.customer_id, "preview")}
                         isDisabled={b.status !== "CheckedOut"}
                         variant="ghost"
                       />
@@ -285,7 +458,7 @@ const BookingSummary = () => {
                         icon={<AiOutlineFilePdf size={22} />}
                         size="sm"
                         colorScheme="red"
-                        onClick={() => downloadInvoice(b.customer_id)}
+                        onClick={() => handleInvoiceAction(b.customer_id, "download")}
                         isDisabled={b.status !== "CheckedOut"}
                         variant="ghost"
                       />
@@ -297,7 +470,6 @@ const BookingSummary = () => {
           </Tbody>
         </Table>
 
-        {/* Pagination */}
         <Box mt={4} display="flex" justifyContent="center">
           {renderPagination()}
         </Box>
@@ -350,7 +522,7 @@ const BookingSummary = () => {
                     icon={<AiOutlineEye size={20} />}
                     size="sm"
                     colorScheme="green"
-                    onClick={() => previewInvoice(b.customer_id)}
+                    onClick={() => handleInvoiceAction(b.customer_id, "preview")}
                     isDisabled={b.status !== "CheckedOut"}
                     variant="ghost"
                   />
@@ -359,7 +531,7 @@ const BookingSummary = () => {
                     icon={<AiOutlineFilePdf size={20} />}
                     size="sm"
                     colorScheme="red"
-                    onClick={() => downloadInvoice(b.customer_id)}
+                    onClick={() => handleInvoiceAction(b.customer_id, "download")}
                     isDisabled={b.status !== "CheckedOut"}
                     variant="ghost"
                   />
@@ -371,12 +543,76 @@ const BookingSummary = () => {
       </Box>
 
       {/* Preview Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} size="4xl">
+      <Modal isOpen={isPreviewOpen} onClose={onPreviewClose} size="4xl">
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Invoice Preview</ModalHeader>
           <ModalCloseButton />
           <ModalBody>{previewData && <InvoiceTemplate data={previewData} />}</ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* GST Confirmation Modal (Only for download) */}
+      <AlertDialog isOpen={isConfirmOpen} leastDestructiveRef={cancelRef} onClose={onConfirmClose}>
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Add GST to Invoice?
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              Would you like to include GST in this invoice? You can specify the GST percentage in the next step.
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={proceedWithoutGst}>
+                Without GST
+              </Button>
+              <Button colorScheme="purple" onClick={proceedWithGst} ml={3}>
+                Add GST
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+
+      {/* GST Details Modal */}
+      <Modal isOpen={isGstOpen} onClose={onGstClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Add GST Details</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <FormControl>
+              <FormLabel>GST Percentage (%)</FormLabel>
+              <NumberInput
+                min={0}
+                max={100}
+                value={gstPercent}
+                onChange={(valueString) => setGstPercent(parseFloat(valueString) || 0)}
+              >
+                <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+            </FormControl>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button
+              colorScheme="purple"
+              onClick={generateInvoiceWithGst}
+              isLoading={isUpdating}
+              loadingText="Updating..."
+            >
+              Generate Invoice
+            </Button>
+            <Button variant="ghost" onClick={onGstClose} ml={3} isDisabled={isUpdating}>
+              Cancel
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </Box>

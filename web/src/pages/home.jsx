@@ -1,5 +1,5 @@
 // src/pages/Dashboard.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   SimpleGrid,
@@ -10,8 +10,12 @@ import {
   StatHelpText,
   StatArrow,
   useColorModeValue,
+  Spinner,
+  Alert,
+  AlertIcon,
 } from "@chakra-ui/react";
-import { Line, Bar, Pie, Doughnut } from "react-chartjs-2";
+// Import Line for Revenue and Bar for Rooms
+import { Line, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,123 +23,85 @@ import {
   PointElement,
   LineElement,
   BarElement,
-  ArcElement,
   Title,
   Tooltip,
   Legend,
 } from "chart.js";
 
 // Register all necessary chart components
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
+// ----------------------------------------------------
 // --- HELPER FUNCTIONS ---
-// Helper function to format currency in ₹
-const formatCurrency = (value) => `₹${value.toLocaleString("en-IN")}`;
+const formatCurrency = (value) => `₹${Number(value).toLocaleString("en-IN")}`;
 
-// --- 1. STATS DATA ---
-const statsData = [
-  { title: "Daily Revenue", value: "₹1,25,000", color: "purple.500", change: 2.5, type: "increase" },
-  { title: "ADR (Avg. Daily Rate)", value: "₹5,500", color: "pink.500", change: 1.2, type: "increase" },
-  { title: "Occupancy Rate", value: "75%", color: "teal.500", change: 0.8, type: "decrease" },
-  { title: "Monthly Expense", value: "₹2,50,000", color: "orange.500", change: 0.5, type: "increase" },
+// --- 12 COLORS FOR 12 MONTHS ---
+const monthColors = [
+  "#0BC5EA",
+  "#38B2AC",
+  "#48BB78",
+  "#825AD5",
+  "#B794F4",
+  "#F6E05E",
+  "#F56565",
+  "#ED8936",
+  "#4299E1",
+  "#00A3C4",
+  "#319795",
+  "#592693",
 ];
 
-// --- 2. CHART DATA (6 Charts) ---
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// 2.1 Weekly Revenue Line Chart
-const lineData = {
-  labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-  datasets: [
-    {
-      label: "Revenue (₹)",
-      data: [120000, 180000, 170000, 140000, 200000, 230000, 210000],
-      borderColor: "rgba(128,90,213,1)",
-      backgroundColor: "rgba(128,90,213,0.2)",
-      tension: 0.4,
-      pointBackgroundColor: "rgba(128,90,213,1)",
-      pointRadius: 5,
-    },
-  ],
-};
+// ----------------------------------------------------
+// --- INITIAL STATS DATA (Used as a placeholder) ---
+const initialStatsData = [
+  {
+    title: "Daily Revenue",
+    value: "₹0",
+    color: "purple.500",
+    change: 0,
+    type: "increase",
+    key: "Today_Received_Amount",
+    period: "today",
+  },
+  {
+    title: "Monthly Revenue",
+    value: "₹0",
+    color: "pink.500",
+    change: 0,
+    type: "increase",
+    key: "Monthly_Received_Amount",
+    period: "monthly",
+  },
+  {
+    title: "Yearly Revenue",
+    value: "₹0",
+    color: "teal.500",
+    change: 0,
+    type: "increase",
+    key: "Yearly_Received_Amount",
+    period: "yearly",
+  },
+  {
+    title: "Monthly Expense",
+    value: "₹0",
+    color: "orange.500",
+    change: 0,
+    type: "increase",
+    key: "Monthly_Expenses",
+    period: "monthly",
+  },
+];
 
-// 2.2 Rooms Booked Bar Chart
-const roomsBarData = {
-  labels: ["Single", "Double", "Suite", "Deluxe"],
-  datasets: [
-    {
-      label: "Rooms Booked",
-      data: [50, 80, 40, 70],
-      backgroundColor: ["#A084CA", "#B19CD9", "#C1A3E0", "#D1B8EB"],
-      borderRadius: 6,
-    },
-  ],
-};
+// --- INITIAL CHART DATA (Placeholder values) ---
+const initialRevenueData = [350, 380, 420, 450, 500, 580, 620, 550, 480, 430, 400, 490].map((val) => val * 10000);
+const initialRoomsData = [900, 950, 1050, 1100, 1250, 1400, 1500, 1350, 1200, 1000, 980, 1280];
 
-// 2.3 Monthly Income Pie Chart
-const incomePieData = {
-  labels: ["Rooms (₹)", "Dining (₹)", "Spa (₹)", "Other (₹)"],
-  datasets: [
-    {
-      label: "Income Distribution (₹)",
-      data: [1800000, 480000, 200000, 100000],
-      backgroundColor: ["#38A169", "#48BB78", "#68D391", "#9AE6B4"],
-      borderColor: "white",
-      borderWidth: 2,
-    },
-  ],
-};
+// ----------------------------------------------------
+// --- CHART OPTIONS (unchanged) ---
 
-// 2.4 Monthly Expenses Bar Chart
-const expenseBarData = {
-  labels: ["Salaries", "Utilities", "Supplies", "Marketing", "Maintenance"],
-  datasets: [
-    {
-      label: "Expenses (₹)",
-      data: [100000, 80000, 30000, 40000, 30000],
-      backgroundColor: "#E53E3E",
-      borderRadius: 6,
-    },
-  ],
-};
-
-// 2.5 Average Daily Rate (ADR) Line Chart
-const adrLineData = {
-  labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-  datasets: [
-    {
-      label: "ADR (₹)",
-      data: [4800, 5100, 5500, 5300, 5800, 6000],
-      borderColor: "#0BC5EA",
-      backgroundColor: "rgba(11, 197, 234, 0.2)",
-      tension: 0.5,
-      pointRadius: 5,
-      pointBackgroundColor: "#0BC5EA",
-    },
-  ],
-};
-
-// 2.6 Occupancy Rate Doughnut Chart
-const totalRooms = 300;
-const occupiedRooms = 225;
-const availableRooms = totalRooms - occupiedRooms;
-
-const occupancyDoughnutData = {
-  labels: [`Occupied (${occupiedRooms} Rooms)`, `Available (${availableRooms} Rooms)`],
-  datasets: [
-    {
-      label: "Room Count",
-      data: [occupiedRooms, availableRooms],
-      backgroundColor: ["#805AD5", "#E9D8FD"],
-      borderColor: "white",
-      borderWidth: 2,
-    },
-  ],
-};
-
-// --- 3. CHART OPTIONS ---
-
-// Global options for Line/Bar charts
-const chartOptions = {
+const revenueChartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   plugins: {
@@ -143,7 +109,6 @@ const chartOptions = {
     title: { display: false },
     tooltip: {
       callbacks: {
-        // Tooltip for financial charts
         label: function (context) {
           let label = context.dataset.label || "";
           if (label) {
@@ -162,47 +127,18 @@ const chartOptions = {
     y: {
       ticks: {
         color: "#5B2C6F",
-        // Format Y-axis labels for currency
         callback: function (value) {
-          if (value >= 1000) {
-            return "₹" + (value / 1000).toFixed(0) + "K";
-          }
-          return "₹" + value;
+          return "₹" + (value / 100000).toFixed(1) + "L";
         },
       },
     },
   },
 };
 
-// Options specific for Pie/Doughnut Charts
-const pieChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { position: "bottom", labels: { color: "#5B2C6F", font: { size: 12 } } },
-    tooltip: {
-      callbacks: {
-        // Tooltip for Income Pie Chart (show currency amount)
-        label: (context) => {
-          if (context.datasetIndex === 0 && context.dataset.label === "Income Distribution (₹)") {
-            return `${context.label}: ${formatCurrency(context.parsed)}`;
-          }
-          // Tooltip for Occupancy Doughnut (show number of rooms)
-          if (context.datasetIndex === 0 && context.dataset.label === "Room Count") {
-            return `${context.label}: ${context.parsed} rooms`;
-          }
-          return `${context.label}: ${context.parsed}`;
-        },
-      },
-    },
-  },
-};
-
-// Update chart options for Rooms Booked Bar chart (Y-axis should not show currency)
 const roomsChartOptions = {
-  ...chartOptions, // Inherit base options
+  ...revenueChartOptions,
   plugins: {
-    ...chartOptions.plugins,
+    ...revenueChartOptions.plugins,
     tooltip: {
       callbacks: {
         label: function (context) {
@@ -211,7 +147,7 @@ const roomsChartOptions = {
             label += ": ";
           }
           if (context.parsed.y !== null) {
-            label += context.parsed.y + " Rooms"; // Show 'Rooms' instead of currency
+            label += context.parsed.y + " Rooms";
           }
           return label;
         },
@@ -219,63 +155,158 @@ const roomsChartOptions = {
     },
   },
   scales: {
-    ...chartOptions.scales,
+    ...revenueChartOptions.scales,
     y: {
       ticks: {
         color: "#5B2C6F",
         callback: function (value) {
           return value;
-        }, // Do not format as currency
+        },
       },
     },
   },
 };
 
-// --- Helper component for uniform chart styling (MOVED UP FOR READABILITY) ---
-const ChartBox = ({ title, children }) => {
+// --- Helper component for uniform chart styling ---
+const ChartBox = ({ title, children, isLoading = false }) => {
   const bg = useColorModeValue("white", "gray.700");
   const shadow = useColorModeValue("md", "dark-lg");
   return (
     <Box
       bg={bg}
       p={6}
-      borderRadius="lg" // Slightly smaller border radius
-      shadow={shadow} // Simpler, cleaner shadow
+      borderRadius="lg"
+      shadow={shadow}
       h="350px"
-      _hover={{ transform: "translateY(-2px)", shadow: "xl", transition: "all 0.2s" }} // Subtler hover effect
+      _hover={{ transform: "translateY(-2px)", shadow: "xl", transition: "all 0.2s" }}
     >
-      <Text fontWeight="bold" fontSize="lg" mb={4} color="gray.700">
+      <Text fontWeight="bold" fontSize="lg" mb={4} color={useColorModeValue("gray.700", "white")}>
         {title}
       </Text>
-      <Box h="280px">{children}</Box>
+      <Box h="280px" display="flex" alignItems="center" justifyContent="center">
+        {isLoading ? (
+          <Box textAlign="center">
+            <Spinner size="lg" color="teal.500" thickness="3px" />
+            <Text mt={4} color="gray.500">Loading chart data...</Text>
+          </Box>
+        ) : (
+          children
+        )}
+      </Box>
     </Box>
   );
 };
 
+// ----------------------------------------------------
 // --- 4. DASHBOARD COMPONENT ---
 export default function Dashboard() {
   const bg = useColorModeValue("gray.50", "gray.900");
   const cardBg = useColorModeValue("white", "gray.800");
 
-  return (
-    <Box p={{ base: 4, md: 8 }} bg={bg} minH="100vh">
-      {/* Stats Cards (4 Tiles) */}
+  // State for Tiles
+  const [statsData, setStatsData] = useState(initialStatsData);
+  const [isLoadingTiles, setIsLoadingTiles] = useState(true);
+  const [isErrorTiles, setIsErrorTiles] = useState(false);
+
+  // State for Charts
+  const [revenueData, setRevenueData] = useState(initialRevenueData);
+  const [roomsData, setRoomsData] = useState(initialRoomsData);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+
+
+  // --- 1. Fetch TILE data on component mount (API 1) ---
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/get-tile-details");
+        if (!response.ok) {
+          throw new Error("Tile network response was not ok");
+        }
+        const result = await response.json();
+
+        if (result.status === "success" && result.data) {
+          const fetchedData = result.data;
+          const updatedStats = initialStatsData.map((stat) => ({
+            ...stat,
+            value: formatCurrency(fetchedData[stat.key] || 0),
+          }));
+          setStatsData(updatedStats);
+        } else {
+          setIsErrorTiles(true);
+          console.error("API response status was not success:", result);
+        }
+      } catch (error) {
+        setIsErrorTiles(true);
+        console.error("Error fetching tile statistics:", error);
+      } finally {
+        setIsLoadingTiles(false);
+      }
+    };
+    fetchStats();
+  }, []);
+
+  // --- 2. Fetch CHART data on component mount (API 2) ---
+  useEffect(() => {
+    const fetchChartData = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/get-monthly-trends");
+        if (!response.ok) {
+          throw new Error("Chart network response was not ok");
+        }
+        const result = await response.json();
+
+        if (result.status === "success" && result.data) {
+          setRevenueData(result.data.monthlyRevenue);
+          setRoomsData(result.data.monthlyRooms);
+        }
+      } catch (error) {
+        console.error("Error fetching chart data:", error);
+        // Chart can fall back to placeholder data on error
+      } finally {
+        setIsLoadingCharts(false);
+      }
+    };
+    fetchChartData();
+  }, []);
+
+
+  // --- TILE Content Render Logic ---
+  let tileContent;
+  if (isLoadingTiles) {
+    tileContent = (
+      <Box textAlign="center" py={10}>
+        <Spinner size="xl" color="purple.500" thickness="4px" />
+        <Text mt={4} color="gray.500">
+          Loading financial metrics...
+        </Text>
+      </Box>
+    );
+  } else if (isErrorTiles) {
+    tileContent = (
+      <Alert status="error" mb={8} borderRadius="lg">
+        <AlertIcon />
+        Failed to load key financial metrics. Please check the server connection (port 8000).
+      </Alert>
+    );
+  } else {
+    // Render Data Cards
+    tileContent = (
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
         {statsData.map((stat, idx) => (
           <Stat
             key={idx}
             bg={cardBg}
-            p={5} // Slightly reduced padding
-            borderRadius="lg" // Slightly smaller border radius
-            shadow="md" // Simpler, minimalist shadow
-            borderLeft="3px solid" // Thinner border
+            p={5}
+            borderRadius="lg"
+            shadow="md"
+            borderLeft="3px solid"
             borderColor={stat.color}
             _hover={{ transform: "translateY(-2px)", shadow: "xl", transition: "all 0.2s" }}
           >
             <StatLabel fontSize="sm" color="gray.500" fontWeight="medium">
               {stat.title}
             </StatLabel>
-            <StatNumber fontSize="2xl" fontWeight="bold" color="gray.800" mt={1}>
+            <StatNumber fontSize="2xl" fontWeight="bold" color={useColorModeValue("gray.800", "white")} mt={1}>
               {stat.value}
             </StatNumber>
             <StatHelpText fontSize="sm" mt={2}>
@@ -288,44 +319,55 @@ export default function Dashboard() {
           </Stat>
         ))}
       </SimpleGrid>
+    );
+  }
 
-      {/* Chart Row 1 (3 Charts) */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} mb={6}>
-        {/* 1. Weekly Revenue Line Chart (Amounts) */}
-        <ChartBox title="Weekly Revenue Trend (₹)">
-          <Line data={lineData} options={chartOptions} />
+  // --- Dynamic Chart Data Objects ---
+  const dynamicMonthlyRevenueLineData = {
+    labels: months,
+    datasets: [
+      {
+        label: "Total Revenue (₹)",
+        data: revenueData, // <--- Using state data
+        borderColor: "rgba(128,90,213,1)",
+        backgroundColor: "rgba(128,90,213,0.2)",
+        tension: 0.4,
+        pointRadius: 5,
+      },
+    ],
+  };
+
+  const dynamicMonthlyRoomsBarData = {
+    labels: months,
+    datasets: [
+      {
+        label: "Total Rooms Booked",
+        data: roomsData, // <--- Using state data
+        backgroundColor: monthColors,
+        borderRadius: 4,
+      },
+    ],
+  };
+
+
+  // --- Main Dashboard Render ---
+  return (
+    <Box p={{ base: 4, md: 8 }} bg={bg} minH="100vh">
+      {/* 📊 Stats Cards (4 Tiles) */}
+      {tileContent}
+
+      {/* 📈 Charts Row (2 Charts - Renders in a single vertical column) */}
+      <SimpleGrid columns={{ base: 1 }} spacing={6}>
+        {/* 1. Monthly Revenue Line Chart */}
+        <ChartBox title={`Monthly Revenue Trend (${new Date().getFullYear()})`} isLoading={isLoadingCharts}>
+          <Line data={dynamicMonthlyRevenueLineData} options={revenueChartOptions} />
         </ChartBox>
 
-        {/* 2. Monthly Income Pie Chart (Amounts) */}
-        <ChartBox title="Monthly Income Sources (₹)">
-          <Pie data={incomePieData} options={pieChartOptions} />
-        </ChartBox>
-
-        {/* 3. ADR Trend Line Chart (Amounts) */}
-        <ChartBox title="Average Daily Rate (ADR) Trend (₹)">
-          <Line data={adrLineData} options={chartOptions} />
-        </ChartBox>
-      </SimpleGrid>
-
-      {/* Chart Row 2 (3 Charts) */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-        {/* 4. Rooms Booked Bar Chart (Numbers) */}
-        <ChartBox title="Rooms Booked by Type (Count)">
-          <Bar data={roomsBarData} options={roomsChartOptions} />
-        </ChartBox>
-
-        {/* 5. Occupancy Rate Doughnut Chart (Numbers) */}
-        <ChartBox title="Current Occupancy (Rooms)">
-          <Doughnut data={occupancyDoughnutData} options={pieChartOptions} />
-        </ChartBox>
-
-        {/* 6. Monthly Expenses Bar Chart (Amounts) */}
-        <ChartBox title="Monthly Expenses Breakdown (₹)">
-          <Bar data={expenseBarData} options={chartOptions} />
+        {/* 2. Monthly Rooms Booked Bar Chart (Uses 12 Colors) */}
+        <ChartBox title={`Monthly Rooms Booked (${new Date().getFullYear()})`} isLoading={isLoadingCharts}>
+          <Bar data={dynamicMonthlyRoomsBarData} options={roomsChartOptions} />
         </ChartBox>
       </SimpleGrid>
     </Box>
   );
 }
-
-// NOTE: The ChartBox component is now included just before the Dashboard export.
