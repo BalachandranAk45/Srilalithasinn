@@ -16,28 +16,23 @@ import {
   Divider,
   ScaleFade,
   FormErrorMessage,
+  InputGroup,
+  InputRightElement,
+  IconButton,
 } from "@chakra-ui/react";
+import { ViewIcon, ViewOffIcon } from "@chakra-ui/icons";
 import { useNavigate } from "react-router-dom";
 import { showStatusToast, ToastMessageContainer } from "../components/toast";
 
 export default function Login({ onLoginSuccess }) {
-  const [loginData, setLoginData] = useState({
-    username: "",
-    password: "",
-    role: "",
-  });
-
-  const [errors, setErrors] = useState({
-    username: "",
-    password: "",
-    role: "",
-  });
-
+  const [loginData, setLoginData] = useState({ username: "", password: "", role: "" });
+  const [errors, setErrors] = useState({ username: "", password: "", role: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setLoginData({ ...loginData, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" }); // Clear error on change
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
   const handleLogin = async () => {
@@ -45,18 +40,9 @@ export default function Login({ onLoginSuccess }) {
 
     let hasError = false;
     const newErrors = { username: "", password: "", role: "" };
-    if (!username) {
-      newErrors.username = "Username required";
-      hasError = true;
-    }
-    if (!password) {
-      newErrors.password = "Password required";
-      hasError = true;
-    }
-    if (!role) {
-      newErrors.role = "Role required";
-      hasError = true;
-    }
+    if (!username) { newErrors.username = "Username required"; hasError = true; }
+    if (!password) { newErrors.password = "Password required"; hasError = true; }
+    if (!role) { newErrors.role = "Role required"; hasError = true; }
     setErrors(newErrors);
     if (hasError) return;
 
@@ -74,8 +60,17 @@ export default function Login({ onLoginSuccess }) {
         return;
       }
 
+      // ✅ Save user info to sessionStorage
+      if (data.user) {
+        const userData = {
+          ...data.user,
+          profileImage: data.user.profile_image || "", // optional fallback
+        };
+        sessionStorage.setItem("user", JSON.stringify(userData));
+      }
+
       showStatusToast("success", "Logged in successfully!");
-      onLoginSuccess();
+      if (onLoginSuccess) onLoginSuccess();
 
       setTimeout(() => navigate("/"), 800);
     } catch (err) {
@@ -117,10 +112,7 @@ export default function Login({ onLoginSuccess }) {
             border="1px solid rgba(255,255,255,0.2)"
             h={{ base: "auto", md: "80%" }}
             transition="all 0.4s ease"
-            _hover={{
-              transform: "translateY(-5px)",
-              shadow: "xl",
-            }}
+            _hover={{ transform: "translateY(-5px)", shadow: "xl" }}
           >
             <CardBody px={10} py={8}>
               <VStack spacing={5} align="stretch">
@@ -134,9 +126,7 @@ export default function Login({ onLoginSuccess }) {
                 <Divider borderColor="whiteAlpha.400" />
 
                 <FormControl isInvalid={!!errors.username}>
-                  <FormLabel color="whiteAlpha.800" fontWeight="600">
-                    Username
-                  </FormLabel>
+                  <FormLabel color="whiteAlpha.800" fontWeight="600">Username</FormLabel>
                   <Input
                     name="username"
                     size="lg"
@@ -145,10 +135,7 @@ export default function Login({ onLoginSuccess }) {
                     border="1px solid rgba(255,255,255,0.2)"
                     borderRadius="xl"
                     _placeholder={{ color: "whiteAlpha.700" }}
-                    _focus={{
-                      borderColor: "teal.300",
-                      boxShadow: "0 0 0 1px teal.400",
-                    }}
+                    _focus={{ borderColor: "teal.300", boxShadow: "0 0 0 1px teal.400" }}
                     value={loginData.username}
                     onChange={handleChange}
                   />
@@ -156,32 +143,43 @@ export default function Login({ onLoginSuccess }) {
                 </FormControl>
 
                 <FormControl isInvalid={!!errors.password}>
-                  <FormLabel color="whiteAlpha.800" fontWeight="600">
-                    Password
-                  </FormLabel>
-                  <Input
-                    type="password"
-                    name="password"
-                    size="lg"
-                    bg="whiteAlpha.200"
-                    color="white"
-                    border="1px solid rgba(255,255,255,0.2)"
-                    borderRadius="xl"
-                    _placeholder={{ color: "whiteAlpha.700" }}
-                    _focus={{
-                      borderColor: "teal.300",
-                      boxShadow: "0 0 0 1px teal.400",
-                    }}
-                    value={loginData.password}
-                    onChange={handleChange}
-                  />
+                  <FormLabel color="whiteAlpha.800" fontWeight="600">Password</FormLabel>
+
+                  {/* InputGroup with toggle button */}
+                  <InputGroup>
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      size="lg"
+                      bg="whiteAlpha.200"
+                      color={showPassword ? "black" : "white"}
+                      border="1px solid rgba(255,255,255,0.2)"
+                      borderRadius="xl"
+                      _placeholder={{ color: "whiteAlpha.700" }}
+                      _focus={{ borderColor: "teal.300", boxShadow: "0 0 0 1px teal.400" }}
+                      value={loginData.password}
+                      onChange={handleChange}
+                      pr="4.5rem"
+                    />
+
+                    <InputRightElement width="3.5rem">
+                      <IconButton
+                        h="2.2rem"
+                        size="sm"
+                        onClick={() => setShowPassword(!showPassword)}
+                        icon={showPassword ? <ViewOffIcon /> : <ViewIcon />}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        variant="ghost"
+                        _focus={{ boxShadow: "none" }}
+                      />
+                    </InputRightElement>
+                  </InputGroup>
+
                   <FormErrorMessage>{errors.password}</FormErrorMessage>
                 </FormControl>
 
                 <FormControl isInvalid={!!errors.role}>
-                  <FormLabel color="whiteAlpha.800" fontWeight="600">
-                    Role
-                  </FormLabel>
+                  <FormLabel color="whiteAlpha.800" fontWeight="600">Role</FormLabel>
                   <Select
                     name="role"
                     placeholder="Select role"
@@ -191,10 +189,7 @@ export default function Login({ onLoginSuccess }) {
                     border="1px solid rgba(255,255,255,0.2)"
                     borderRadius="xl"
                     _placeholder={{ color: "whiteAlpha.700" }}
-                    _focus={{
-                      borderColor: "teal.300",
-                      boxShadow: "0 0 0 1px teal.400",
-                    }}
+                    _focus={{ borderColor: "teal.300", boxShadow: "0 0 0 1px teal.400" }}
                     value={loginData.role}
                     onChange={handleChange}
                   >
@@ -215,10 +210,7 @@ export default function Login({ onLoginSuccess }) {
                   borderRadius="xl"
                   letterSpacing="wide"
                   transition="all 0.3s ease"
-                  _hover={{
-                    transform: "scale(1.03)",
-                    shadow: "xl",
-                  }}
+                  _hover={{ transform: "scale(1.03)", shadow: "xl" }}
                   onClick={handleLogin}
                 >
                   Sign In

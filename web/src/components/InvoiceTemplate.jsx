@@ -4,7 +4,7 @@ import React from "react";
 // --- Theme Configuration & Styles ---
 
 const THEME = {
-  primaryGradient: "linear-gradient(90deg, #B19CD9, #A084CA)", // Soft purple gradient
+  primaryGradient: "linear-gradient(90deg, #a37befff, #aa79f4c0)", // Soft purple gradient
   secondary: "#F5F3FA", // Light background for info boxes
   text: "#333333",
   lightText: "#666666",

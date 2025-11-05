@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   Flex,
   IconButton,
@@ -23,7 +23,6 @@ import {
   Box,
   HStack,
   Badge,
-  Tooltip,
 } from "@chakra-ui/react";
 import { HiMenuAlt3 } from "react-icons/hi";
 import { FiBell } from "react-icons/fi";
@@ -34,8 +33,21 @@ import { NotificationContext } from "../context/NotificationContext";
 export default function Topbar({ onLogout }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const navigate = useNavigate();
-
   const { newBookings, resetNewBookings } = useContext(NotificationContext);
+
+  const [user, setUser] = useState({
+    username: "",
+    role: "",
+    email: "",
+    profileImage: "",
+  });
+
+  useEffect(() => {
+    const storedUser = sessionStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
 
   const handleLogout = () => {
     sessionStorage.clear();
@@ -69,7 +81,9 @@ export default function Topbar({ onLogout }) {
           variant="ghost"
         />
 
-        <Box fontWeight="700" fontSize="lg" color="purple.700" />
+        <Box fontWeight="700" fontSize="lg" color="purple.700">
+          {/* You can add app logo or title here */}
+        </Box>
 
         {/* Notification + Profile */}
         <HStack spacing={4}>
@@ -84,12 +98,12 @@ export default function Topbar({ onLogout }) {
                   color="gray.600"
                   _hover={{ bg: "gray.100" }}
                   onClick={() => {
-                    resetNewBookings(); // clear count
-                    setTimeout(() => navigate("/online-enquiries"), 0); // then navigate
+                    resetNewBookings();
+                    setTimeout(() => navigate("/online-enquiries"), 0);
                   }}
                 />
               </PopoverTrigger>
-              <PopoverContent w="200px" borderRadius="md" boxShadow="md">
+              <PopoverContent w="220px" borderRadius="md" boxShadow="md">
                 <PopoverArrow />
                 <PopoverHeader fontWeight="600" borderBottom="1px solid" borderColor="gray.200">
                   Notifications
@@ -129,8 +143,8 @@ export default function Topbar({ onLogout }) {
             <MenuButton>
               <Avatar
                 size="sm"
-                name="Ravi Kumar"
-                src="https://bit.ly/dan-abramov"
+                name={user.username || "User"}
+                src={user.profileImage || ""} // dynamic image with fallback
                 cursor="pointer"
                 border="2px solid"
                 borderColor="purple.500"
@@ -140,14 +154,14 @@ export default function Topbar({ onLogout }) {
             <MenuList p={3} shadow="md" minW="200px">
               <VStack align="start" spacing={1} mb={2}>
                 <Text fontWeight="600" fontSize="sm" color="gray.700">
-                  Ravi Kumar
+                  {user.username || "User"}
                 </Text>
                 <Text fontSize="xs" color="gray.500">
-                  Admin
+                  {user.role || "Role"}
                 </Text>
               </VStack>
               <Divider />
-              <MenuItem onClick={() => navigate("/profile")}>View Profile</MenuItem>
+              <MenuItem >View Profile</MenuItem>
               <MenuItem onClick={handleLogout}>Logout</MenuItem>
             </MenuList>
           </Menu>
